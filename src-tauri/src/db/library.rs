@@ -223,6 +223,7 @@ pub fn list_files_for_book(book_id: i64) -> Result<Vec<(i64, String, Option<Stri
     })
 }
 
+#[expect(dead_code, reason = "watcher does not handle file removal yet")]
 pub fn delete_file(file_id: i64) -> Result<()> {
     with_conn(|conn| {
         conn.execute("DELETE FROM files WHERE id = ?1", params![file_id])?;

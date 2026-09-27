@@ -5,7 +5,7 @@ use crate::db::library::{
 use crate::search;
 use crate::watcher;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BookWithStatus {
@@ -55,7 +55,7 @@ pub fn add_book_cmd(root_path: String, app: tauri::AppHandle) -> Result<Book, St
     Ok(book)
 }
 
-fn derive_book_name(root: &PathBuf) -> String {
+fn derive_book_name(root: &Path) -> String {
     for candidate in &["README.md", "index.md", "readme.md"] {
         let p = root.join(candidate);
         if let Ok(content) = std::fs::read_to_string(&p) {

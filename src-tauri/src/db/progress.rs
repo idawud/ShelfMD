@@ -123,7 +123,6 @@ pub fn get_book_progress(book_id: i64) -> Result<(i64, i64)> {
 mod tests {
     use super::*;
     use crate::db;
-    use std::path::PathBuf;
 
     fn setup_test_db() {
         let dir = std::env::temp_dir().join(format!("shelfmd_test_{}", std::process::id()));

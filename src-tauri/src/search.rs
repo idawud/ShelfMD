@@ -67,11 +67,10 @@ pub fn build_index(book_id: i64, files: Vec<(PathBuf, Option<String>)>) -> Resul
 
         // Index each paragraph as a separate document for better snippets
         let path_str = abs_path.to_string_lossy().into_owned();
-        let mut line_num: u64 = 0;
         let mut para_lines: Vec<&str> = Vec::new();
         let mut para_start: u64 = 0;
 
-        for line in content.lines() {
+        for (line_num, line) in (0_u64..).zip(content.lines()) {
             if line.trim().is_empty() {
                 if !para_lines.is_empty() {
                     let para = para_lines.join(" ");
@@ -87,7 +86,6 @@ pub fn build_index(book_id: i64, files: Vec<(PathBuf, Option<String>)>) -> Resul
             } else {
                 para_lines.push(line);
             }
-            line_num += 1;
         }
         if !para_lines.is_empty() {
             let para = para_lines.join(" ");
