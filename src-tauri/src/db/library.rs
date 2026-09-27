@@ -3,6 +3,7 @@ use anyhow::Result;
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
 
+#[expect(dead_code, reason = "library view not wired up yet")]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Book {
     pub id: i64,
@@ -16,6 +17,7 @@ pub struct Book {
     pub settings_json: String,
 }
 
+#[expect(dead_code, reason = "library view not wired up yet")]
 pub fn list_books() -> Result<Vec<Book>> {
     with_conn(|conn| {
         let mut stmt = conn.prepare(
@@ -42,6 +44,7 @@ pub fn list_books() -> Result<Vec<Book>> {
     })
 }
 
+#[expect(dead_code, reason = "library view not wired up yet")]
 pub fn add_book(root_path: &str, name: &str) -> Result<Book> {
     with_conn(|conn| {
         conn.execute(
