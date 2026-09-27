@@ -140,9 +140,12 @@ mod fixture_tests {
         // Resolve relative to CARGO_MANIFEST_DIR
         let manifest = env!("CARGO_MANIFEST_DIR");
         PathBuf::from(manifest)
-            .parent().unwrap() // crates/
-            .parent().unwrap() // src-tauri/
-            .parent().unwrap() // ShelfMD/
+            .parent()
+            .unwrap() // crates/
+            .parent()
+            .unwrap() // src-tauri/
+            .parent()
+            .unwrap() // ShelfMD/
             .join("tests/fixtures/book")
     }
 
