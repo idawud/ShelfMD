@@ -43,6 +43,7 @@ pub fn run() {
             commands::library::search_book,
             commands::library::touch_book,
             commands::library::get_reading_order,
+            commands::jumplist::update_jump_list,
         ])
         .setup(|app| {
             let app_data_dir = app
