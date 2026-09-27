@@ -52,8 +52,7 @@
         "headerImage": null,
         "sidebarImage": null,
         "installMode": "currentUser",
-        "languages": ["English"],
-        "customNsisScript": null
+        "languages": ["English"]
       }
     }
   }
