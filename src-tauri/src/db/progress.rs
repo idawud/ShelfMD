@@ -15,6 +15,7 @@ pub struct Progress {
     pub updated_at: String,
 }
 
+#[expect(dead_code, reason = "per-file progress listing not wired up yet")]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FileProgress {
     pub file_id: i64,
