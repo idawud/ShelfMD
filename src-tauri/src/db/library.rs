@@ -17,6 +17,15 @@ pub struct Book {
     pub settings_json: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Session {
+    pub book_id: i64,
+    pub tabs_json: String,
+    pub active_tab: i64,
+    pub sidebar_json: String,
+    pub last_file_id: Option<i64>,
+}
+
 #[expect(dead_code, reason = "library view not wired up yet")]
 pub fn list_books() -> Result<Vec<Book>> {
     with_conn(|conn| {
@@ -52,7 +61,8 @@ pub fn add_book(root_path: &str, name: &str) -> Result<Book> {
             params![name, root_path],
         )?;
         let book = conn.query_row(
-            "SELECT id, name, root_path, tags, pinned, cover, added_at, last_opened_at, settings_json FROM books WHERE root_path = ?1",
+            "SELECT id, name, root_path, tags, pinned, cover, added_at, last_opened_at, settings_json
+             FROM books WHERE root_path = ?1",
             params![root_path],
             |row| Ok(Book {
                 id: row.get(0)?,
@@ -67,5 +77,94 @@ pub fn add_book(root_path: &str, name: &str) -> Result<Book> {
             })
         )?;
         Ok(book)
+    })
+}
+
+/// MEM-02: Upsert a file record, storing content hash
+pub fn upsert_file(
+    book_id: i64,
+    rel_path: &str,
+    content_hash: &str,
+    title: Option<&str>,
+    word_count: i64,
+) -> Result<i64> {
+    with_conn(|conn| {
+        conn.execute(
+            "INSERT INTO files (book_id, rel_path, content_hash, title, word_count)
+             VALUES (?1, ?2, ?3, ?4, ?5)
+             ON CONFLICT(book_id, rel_path) DO UPDATE SET
+               content_hash = excluded.content_hash,
+               title = excluded.title,
+               word_count = excluded.word_count",
+            params![book_id, rel_path, content_hash, title, word_count],
+        )?;
+        let id: i64 = conn.query_row(
+            "SELECT id FROM files WHERE book_id = ?1 AND rel_path = ?2",
+            params![book_id, rel_path],
+            |r| r.get(0),
+        )?;
+        Ok(id)
+    })
+}
+
+pub fn get_file_by_path(book_id: i64, rel_path: &str) -> Result<Option<(i64, Option<String>)>> {
+    // Returns (file_id, content_hash)
+    with_conn(|conn| {
+        let result = conn.query_row(
+            "SELECT id, content_hash FROM files WHERE book_id = ?1 AND rel_path = ?2",
+            params![book_id, rel_path],
+            |r| Ok((r.get::<_, i64>(0)?, r.get::<_, Option<String>>(1)?)),
+        );
+        match result {
+            Ok(v) => Ok(Some(v)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(e.into()),
+        }
+    })
+}
+
+pub fn get_session(book_id: i64) -> Result<Option<Session>> {
+    with_conn(|conn| {
+        let result = conn.query_row(
+            "SELECT book_id, tabs_json, active_tab, sidebar_json, last_file_id
+             FROM sessions WHERE book_id = ?1",
+            params![book_id],
+            |row| {
+                Ok(Session {
+                    book_id: row.get(0)?,
+                    tabs_json: row.get(1)?,
+                    active_tab: row.get(2)?,
+                    sidebar_json: row.get(3)?,
+                    last_file_id: row.get(4)?,
+                })
+            },
+        );
+        match result {
+            Ok(s) => Ok(Some(s)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(e.into()),
+        }
+    })
+}
+
+pub fn set_session(s: &Session) -> Result<()> {
+    with_conn(|conn| {
+        conn.execute(
+            "INSERT INTO sessions (book_id, tabs_json, active_tab, sidebar_json, last_file_id)
+             VALUES (?1, ?2, ?3, ?4, ?5)
+             ON CONFLICT(book_id) DO UPDATE SET
+               tabs_json = excluded.tabs_json,
+               active_tab = excluded.active_tab,
+               sidebar_json = excluded.sidebar_json,
+               last_file_id = excluded.last_file_id",
+            params![
+                s.book_id,
+                s.tabs_json,
+                s.active_tab,
+                s.sidebar_json,
+                s.last_file_id
+            ],
+        )?;
+        Ok(())
     })
 }

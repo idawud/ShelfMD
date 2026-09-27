@@ -12,8 +12,9 @@
     markBrokenLinks,
     rewriteImagePaths,
   } from '$lib/links.js';
+  import { progressStore } from '$lib/stores/progress.svelte.js';
   import type { Heading } from '$lib/types.js';
-  import type { OpenFileResult } from '$lib/types.js';
+  import type { OpenFileResult, OpenWithMemoryResult } from '$lib/types.js';
   import TabBar from './TabBar.svelte';
   import Outline from './Outline.svelte';
   import FindBar from './FindBar.svelte';
@@ -32,6 +33,7 @@
   let toasts = $state<Array<{ id: string; message: string; type: string }>>([]);
   let isLoading = $state(false);
   let statusText = $state('');
+  let currentFileId = $state<number | null>(null);
 
   // Derived from active tab
   let activeTab = $derived(tabStore.active);
@@ -56,7 +58,12 @@
         return;
       }
 
-      const result = await invoke<OpenFileResult>('open_file', { path: filePath });
+      // Save progress for current file before navigating
+      if (currentFileId !== null && readerEl) {
+        await progressStore.save(currentFileId, readerEl);
+      }
+
+      const result = await invoke<OpenWithMemoryResult>('open_file_with_memory', { path: filePath, bookId: null });
 
       // Save current scroll before navigating
       const currentScrollLine = readerEl ? getScrollPosition(readerEl).line : 0;
@@ -94,6 +101,31 @@
           anchor,
           scrollLine: 0,
         });
+      }
+
+      // Store file ID for progress tracking
+      currentFileId = result.file_id;
+
+      // MEM-05: Restore position if progress exists
+      if (result.progress && !anchor) {
+        const prog = result.progress;
+        await tick();
+        await tick();
+        if (readerEl) {
+          if (!result.content_changed && prog.heading_slug) {
+            scrollToSlug(readerEl, prog.heading_slug);
+          } else if (!result.content_changed) {
+            scrollToLine(readerEl, prog.top_line);
+          } else if (result.content_changed && prog.heading_text) {
+            // MEM-02: content changed, try to find heading by text
+            const headingEls = Array.from(readerEl.querySelectorAll<HTMLElement>('h1,h2,h3,h4,h5,h6'));
+            const match = headingEls.find(h => h.textContent?.trim() === prog.heading_text);
+            if (match) match.scrollIntoView({ behavior: 'instant', block: 'start' });
+          }
+        }
+        // MEM-05: "Resumed at" toast
+        const loc = prog.heading_text ?? `line ${prog.top_line}`;
+        showToast(`Resumed at: ${loc}`, 'info');
       }
 
       // LNK-06: scroll to anchor after render
@@ -178,6 +210,22 @@
       readerEl?.removeEventListener('mouseout', out);
     };
   });
+
+  // ——— MEM-03: Progress debounce — runs while a file is open ———
+  $effect(() => {
+    if (currentFileId === null || !readerEl) return;
+    const fileId = currentFileId;
+    const container = readerEl;
+    const stop = progressStore.startDebounce(fileId, container);
+    return stop;
+  });
+
+  // ——— MEM-03: Flush progress on window blur ———
+  function handleWindowBlur() {
+    if (currentFileId !== null && readerEl) {
+      progressStore.save(currentFileId, readerEl);
+    }
+  }
 
   // ——— Scroll tracking for active heading ———
   let scrollDebounce: ReturnType<typeof setTimeout> | null = null;
@@ -442,7 +490,7 @@ fn main() {
   let canForward = $derived(activeTab ? tabStore.canForward(activeTab.id) : false);
 </script>
 
-<svelte:window onkeydown={handleKeydown} />
+<svelte:window onkeydown={handleKeydown} onblur={handleWindowBlur} />
 
 <div
   class="flex flex-col h-screen overflow-hidden {settings.theme === 'dark' ? 'dark' : settings.theme === 'sepia' ? 'sepia' : ''}"

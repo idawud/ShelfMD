@@ -51,3 +51,31 @@ export interface OpenFileResult {
   canonical_path: string;
   file_name: string;
 }
+
+export interface Progress {
+  file_id: number;
+  top_line: number;
+  heading_slug: string | null;
+  heading_text: string | null;
+  percent: number;
+  finished: boolean;
+  view_mode: string;
+  updated_at: string;
+}
+
+export interface Session {
+  book_id: number;
+  tabs_json: string;
+  active_tab: number;
+  sidebar_json: string;
+  last_file_id: number | null;
+}
+
+export interface OpenWithMemoryResult {
+  content: string;
+  canonical_path: string;
+  file_name: string;
+  file_id: number;
+  progress: Progress | null;
+  content_changed: boolean;
+}
