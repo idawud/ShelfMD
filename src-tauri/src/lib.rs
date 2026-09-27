@@ -1,5 +1,7 @@
 mod commands;
 mod db;
+mod search;
+mod watcher;
 
 use tauri::Manager;
 
@@ -25,6 +27,15 @@ pub fn run() {
             commands::files::save_file,
             commands::files::open_path_externally,
             commands::files::open_url_externally,
+            commands::library::list_books_cmd,
+            commands::library::add_book_cmd,
+            commands::library::update_book_cmd,
+            commands::library::relocate_book,
+            commands::library::remove_book_cmd,
+            commands::library::list_book_files,
+            commands::library::search_book,
+            commands::library::touch_book,
+            commands::library::get_reading_order,
         ])
         .setup(|app| {
             let app_data_dir = app

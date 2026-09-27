@@ -1,9 +1,12 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
+  import { listen } from '@tauri-apps/api/event';
   import { renderMarkdown, extractHeadings, slugify } from '$lib/markdown.js';
   import { settingsStore } from '$lib/stores/settings.svelte.js';
   import { tabStore } from '$lib/stores/tabs.svelte.js';
+  import { libraryStore } from '$lib/stores/library.svelte.js';
+  import { treeStore } from '$lib/stores/tree.svelte.js';
   import { getScrollPosition, scrollToLine, scrollToSlug } from '$lib/scroll.js';
   import { matchShortcut } from '$lib/shortcuts.js';
   import {
@@ -18,6 +21,10 @@
   import TabBar from './TabBar.svelte';
   import Outline from './Outline.svelte';
   import FindBar from './FindBar.svelte';
+  import LibrarySidebar from './LibrarySidebar.svelte';
+  import BookSwitcher from './BookSwitcher.svelte';
+  import QuickOpen from './QuickOpen.svelte';
+  import SearchPanel from './SearchPanel.svelte';
 
   // ——— State ———
   let readerEl = $state<HTMLElement | null>(null);
@@ -27,6 +34,7 @@
   let findQuery = $state('');
   let isZenMode = $state(false);
   let sidebarOpen = $state(true);
+  let sidebarTab = $state<'outline' | 'files'>('outline');
   let showLightbox = $state(false);
   let lightboxSrc = $state('');
   let activeHeadingSlug = $state<string | null>(null);
@@ -34,6 +42,9 @@
   let isLoading = $state(false);
   let statusText = $state('');
   let currentFileId = $state<number | null>(null);
+  let showSwitcher = $state(false);
+  let showQuickOpen = $state(false);
+  let showSearchPanel = $state(false);
 
   // Derived from active tab
   let activeTab = $derived(tabStore.active);
@@ -382,6 +393,18 @@
         goForward();
         e.preventDefault();
         break;
+      case 'book-switcher':
+        showSwitcher = true;
+        e.preventDefault();
+        break;
+      case 'quick-open':
+        if (libraryStore.activeBook) { showQuickOpen = true; }
+        e.preventDefault();
+        break;
+      case 'book-search':
+        if (libraryStore.activeBook) { showSearchPanel = true; }
+        e.preventDefault();
+        break;
     }
   }
 
@@ -419,6 +442,25 @@
 
   // ——— Init ———
   onMount(() => {
+    libraryStore.load().catch(() => {});
+
+    // Listen for file-changed events from the watcher
+    listen<{ book_id: number; path: string; kind: string }>('file-changed', (event) => {
+      const { path } = event.payload;
+      // If the changed file is currently open, reload it
+      const openTab = tabStore.tabs.find(t => t.filePath === path);
+      if (openTab) {
+        invoke<OpenWithMemoryResult>('open_file_with_memory', { path, bookId: null })
+          .then(result => {
+            tabStore.update(openTab.id, {
+              content: result.content,
+              title: result.file_name,
+            });
+          })
+          .catch(() => {});
+      }
+    }).catch(() => {});
+
     tabStore.init();
     if (tabStore.tabs.length === 1 && !tabStore.active?.content) {
       tabStore.update(tabStore.tabs[0].id, {
@@ -535,13 +577,30 @@ fn main() {
   <div class="flex flex-1 overflow-hidden relative">
     <!-- Sidebar -->
     {#if sidebarOpen && !isZenMode}
-      <Outline
-        {headings}
-        {activeHeadingSlug}
-        onJump={(slug) => {
-          if (readerEl) scrollToSlug(readerEl, slug);
-        }}
-      />
+      <div class="flex flex-col w-56 shrink-0 border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 overflow-hidden">
+        <!-- Sidebar tab bar -->
+        <div class="flex border-b border-gray-200 dark:border-gray-700 shrink-0">
+          <button
+            class="flex-1 text-xs py-1.5 font-medium {sidebarTab === 'outline' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}"
+            onclick={() => { sidebarTab = 'outline'; }}
+          >Outline</button>
+          <button
+            class="flex-1 text-xs py-1.5 font-medium {sidebarTab === 'files' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}"
+            onclick={() => { sidebarTab = 'files'; }}
+          >Files</button>
+        </div>
+        {#if sidebarTab === 'outline'}
+          <Outline
+            {headings}
+            {activeHeadingSlug}
+            onJump={(slug) => {
+              if (readerEl) scrollToSlug(readerEl, slug);
+            }}
+          />
+        {:else}
+          <LibrarySidebar onOpenFile={(path) => navigateToFile(path)} />
+        {/if}
+      </div>
     {/if}
 
     <!-- Reader area -->
@@ -631,5 +690,34 @@ fn main() {
   <!-- Zen mode exit hint -->
   {#if isZenMode}
     <div class="fixed top-2 right-2 text-xs text-gray-400/50 z-40">Press F11 to exit Zen mode</div>
+  {/if}
+
+  <!-- Library palettes -->
+  {#if showSwitcher}
+    <BookSwitcher
+      onSelect={(bookId) => {
+        libraryStore.setActive(bookId);
+        const bk = libraryStore.books.find(b => b.book.id === bookId);
+        if (bk) treeStore.loadBook(bookId, bk.book.root_path).catch(() => {});
+      }}
+      onClose={() => { showSwitcher = false; }}
+    />
+  {/if}
+
+  {#if showQuickOpen && libraryStore.activeBook}
+    <QuickOpen
+      bookId={libraryStore.activeBook.book.id}
+      bookRoot={libraryStore.activeBook.book.root_path}
+      onSelect={(path) => navigateToFile(path)}
+      onClose={() => { showQuickOpen = false; }}
+    />
+  {/if}
+
+  {#if showSearchPanel && libraryStore.activeBook}
+    <SearchPanel
+      bookId={libraryStore.activeBook.book.id}
+      onNavigate={(path, _line) => navigateToFile(path)}
+      onClose={() => { showSearchPanel = false; }}
+    />
   {/if}
 </div>

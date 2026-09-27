@@ -49,4 +49,16 @@ describe('matchShortcut', () => {
   it('matches DEFAULT_KEYMAP keys', () => {
     expect(Object.keys(DEFAULT_KEYMAP).length).toBeGreaterThan(0);
   });
+
+  it('matches Ctrl+Shift+O for book-switcher', () => {
+    expect(matchShortcut(mockEvent('o', { ctrl: true, shift: true }))).toBe('book-switcher');
+  });
+
+  it('matches Ctrl+P for quick-open', () => {
+    expect(matchShortcut(mockEvent('p', { ctrl: true }))).toBe('quick-open');
+  });
+
+  it('matches Ctrl+Shift+F for book-search', () => {
+    expect(matchShortcut(mockEvent('f', { ctrl: true, shift: true }))).toBe('book-search');
+  });
 });

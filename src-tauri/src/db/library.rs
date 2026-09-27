@@ -3,7 +3,6 @@ use anyhow::Result;
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
 
-#[expect(dead_code, reason = "library view not wired up yet")]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Book {
     pub id: i64,
@@ -26,7 +25,6 @@ pub struct Session {
     pub last_file_id: Option<i64>,
 }
 
-#[expect(dead_code, reason = "library view not wired up yet")]
 pub fn list_books() -> Result<Vec<Book>> {
     with_conn(|conn| {
         let mut stmt = conn.prepare(
@@ -53,7 +51,6 @@ pub fn list_books() -> Result<Vec<Book>> {
     })
 }
 
-#[expect(dead_code, reason = "library view not wired up yet")]
 pub fn add_book(root_path: &str, name: &str) -> Result<Book> {
     with_conn(|conn| {
         conn.execute(
@@ -165,6 +162,71 @@ pub fn set_session(s: &Session) -> Result<()> {
                 s.last_file_id
             ],
         )?;
+        Ok(())
+    })
+}
+
+pub fn remove_book(book_id: i64) -> Result<()> {
+    with_conn(|conn| {
+        conn.execute("DELETE FROM books WHERE id = ?1", params![book_id])?;
+        Ok(())
+    })
+}
+
+pub fn update_book(book_id: i64, name: &str, tags: &str, settings_json: &str) -> Result<()> {
+    with_conn(|conn| {
+        conn.execute(
+            "UPDATE books SET name = ?1, tags = ?2, settings_json = ?3 WHERE id = ?4",
+            params![name, tags, settings_json, book_id],
+        )?;
+        Ok(())
+    })
+}
+
+pub fn update_book_root(book_id: i64, new_root: &str) -> Result<()> {
+    with_conn(|conn| {
+        conn.execute(
+            "UPDATE books SET root_path = ?1 WHERE id = ?2",
+            params![new_root, book_id],
+        )?;
+        Ok(())
+    })
+}
+
+pub fn touch_book_opened(book_id: i64) -> Result<()> {
+    with_conn(|conn| {
+        conn.execute(
+            "UPDATE books SET last_opened_at = datetime('now') WHERE id = ?1",
+            params![book_id],
+        )?;
+        Ok(())
+    })
+}
+
+pub fn list_files_for_book(book_id: i64) -> Result<Vec<(i64, String, Option<String>)>> {
+    // Returns (file_id, rel_path, title)
+    with_conn(|conn| {
+        let mut stmt = conn.prepare(
+            "SELECT id, rel_path, title FROM files WHERE book_id = ?1 ORDER BY rel_path",
+        )?;
+        let rows = stmt
+            .query_map(params![book_id], |r| {
+                Ok((
+                    r.get::<_, i64>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, Option<String>>(2)?,
+                ))
+            })?
+            .filter_map(|r| r.ok())
+            .collect();
+        Ok(rows)
+    })
+}
+
+#[expect(dead_code, reason = "watcher does not handle file removal yet")]
+pub fn delete_file(file_id: i64) -> Result<()> {
+    with_conn(|conn| {
+        conn.execute("DELETE FROM files WHERE id = ?1", params![file_id])?;
         Ok(())
     })
 }

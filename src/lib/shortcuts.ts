@@ -14,7 +14,10 @@ export type ShortcutAction =
   | 'paste-mode'
   | 'sidebar-toggle'
   | 'nav-back' | 'nav-forward'
-  | 'copy-rich' | 'copy-raw';
+  | 'copy-rich' | 'copy-raw'
+  | 'book-switcher'
+  | 'quick-open'
+  | 'book-search';
 
 export interface KeyBinding {
   key: string;
@@ -62,6 +65,9 @@ export const DEFAULT_KEYMAP: KeyMap = {
   'nav-forward':      [{ key: 'ArrowRight', alt: true }],
   'copy-rich':        [],
   'copy-raw':         [],
+  'book-switcher':    [{ key: 'o', ctrl: true, shift: true }],
+  'quick-open':       [{ key: 'p', ctrl: true }],
+  'book-search':      [{ key: 'f', ctrl: true, shift: true }],
 };
 
 function matchesBinding(e: KeyboardEvent, binding: KeyBinding): boolean {
