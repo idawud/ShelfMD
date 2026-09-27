@@ -32,6 +32,9 @@ export function createLibraryStore() {
       loading = true;
       try {
         books = await invoke<BookWithStatus[]>('list_books_cmd');
+        // Update Windows taskbar Jump List with recent book paths
+        const paths = books.map(b => b.book.root_path);
+        invoke('update_jump_list', { books: paths }).catch(() => {});
       } finally {
         loading = false;
       }
