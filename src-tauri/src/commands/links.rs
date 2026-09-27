@@ -1,5 +1,5 @@
-use shelfmd_core::resolver::{resolve_link as do_resolve, LinkType};
 use serde::{Deserialize, Serialize};
+use shelfmd_core::resolver::{resolve_link as do_resolve, LinkType};
 use std::path::PathBuf;
 
 /// Check if a resolved markdown file has a given heading slug.
