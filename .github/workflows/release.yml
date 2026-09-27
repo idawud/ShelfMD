@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build (e.g. v0.1.0) — must already exist in the repo'
+        required: true
+        type: string
 
 jobs:
   build:
@@ -14,6 +20,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -39,7 +47,7 @@ jobs:
       - name: Check version consistency (tag must match project files)
         shell: pwsh
         run: |
-          $tag = "${{ github.ref_name }}" -replace '^v', ''
+          $tag = ("${{ inputs.tag || github.ref_name }}") -replace '^v', ''
           $pkg = (Get-Content package.json | ConvertFrom-Json).version
           $cargo = (Select-String 'version = "' src-tauri/Cargo.toml | Select-Object -First 1).Line -replace '.*version = "([^"]+)".*', '$1'
           $tauri = (Get-Content src-tauri/tauri.conf.json | ConvertFrom-Json).version
