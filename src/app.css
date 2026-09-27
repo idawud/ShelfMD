@@ -1,10 +1,222 @@
 @import "tailwindcss";
 
-/* Reader typography */
+/* ——— Theme variables ——— */
+:root {
+  --prose-bg: #ffffff;
+  --prose-text: #1a202c;
+  --prose-link: #2563eb;
+  --prose-code-bg: #f3f4f6;
+  --prose-border: #e5e7eb;
+  --reader-font: Georgia, serif;
+  --reader-size: 16px;
+  --reader-lh: 1.75;
+  --reader-width: 72ch;
+  --reader-zoom: 1;
+}
+
+.dark {
+  --prose-bg: #111827;
+  --prose-text: #f3f4f6;
+  --prose-link: #60a5fa;
+  --prose-code-bg: #1f2937;
+  --prose-border: #374151;
+}
+
+.sepia {
+  --prose-bg: #fef3c7;
+  --prose-text: #44403c;
+  --prose-link: #b45309;
+  --prose-code-bg: #fde68a;
+  --prose-border: #d97706;
+}
+
+/* ——— Reader typography ——— */
 .prose-reader {
-  font-family: var(--reader-font, 'Georgia', serif);
-  font-size: var(--reader-size, 1rem);
-  line-height: var(--reader-lh, 1.75);
-  max-width: var(--reader-width, 72ch);
-  margin: 0 auto;
+  font-family: var(--reader-font);
+  font-size: var(--reader-size);
+  line-height: var(--reader-lh);
+  max-width: var(--reader-width);
+  color: var(--prose-text);
+}
+
+.prose-reader h1, .prose-reader h2, .prose-reader h3,
+.prose-reader h4, .prose-reader h5, .prose-reader h6 {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-weight: 600;
+  margin-top: 2em;
+  margin-bottom: 0.5em;
+  line-height: 1.3;
+}
+
+.prose-reader h1 { font-size: 2em; border-bottom: 2px solid var(--prose-border); padding-bottom: 0.25em; }
+.prose-reader h2 { font-size: 1.5em; border-bottom: 1px solid var(--prose-border); padding-bottom: 0.2em; }
+.prose-reader h3 { font-size: 1.25em; }
+
+.prose-reader p { margin-bottom: 1em; }
+
+.prose-reader a { color: var(--prose-link); text-decoration: underline; }
+.prose-reader a[data-wiki] { text-decoration: underline dotted; }
+
+/* Broken link styling (LNK-15) */
+.prose-reader a.broken-link,
+.prose-reader a[data-broken] {
+  text-decoration: underline dashed;
+  color: #dc2626;
+}
+
+.prose-reader code {
+  background: var(--prose-code-bg);
+  padding: 0.15em 0.4em;
+  border-radius: 3px;
+  font-size: 0.875em;
+  font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+}
+
+.prose-reader pre { margin: 1em 0; }
+
+.prose-reader blockquote {
+  border-left: 4px solid var(--prose-border);
+  padding-left: 1em;
+  margin-left: 0;
+  color: #6b7280;
+}
+
+.prose-reader table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+  font-size: 0.9em;
+}
+
+.prose-reader th, .prose-reader td {
+  border: 1px solid var(--prose-border);
+  padding: 0.5em 0.75em;
+  text-align: left;
+}
+
+.prose-reader th { background: var(--prose-code-bg); font-weight: 600; }
+
+.prose-reader img {
+  max-width: 100%;
+  border-radius: 4px;
+  cursor: zoom-in;
+}
+
+.prose-reader hr { border: none; border-top: 1px solid var(--prose-border); margin: 2em 0; }
+
+/* ——— Code blocks ——— */
+.code-block {
+  position: relative;
+  margin: 1em 0;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--prose-border);
+}
+
+.code-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.25em 0.75em;
+  background: var(--prose-code-bg);
+  border-bottom: 1px solid var(--prose-border);
+  font-size: 0.75em;
+}
+
+.code-lang { color: #6b7280; font-family: monospace; }
+
+.copy-btn {
+  padding: 0.1em 0.5em;
+  border: 1px solid var(--prose-border);
+  border-radius: 3px;
+  background: white;
+  cursor: pointer;
+  font-size: 0.8em;
+  color: #374151;
+}
+.copy-btn:hover { background: #f3f4f6; }
+
+.code-block pre {
+  margin: 0;
+  padding: 0.75em 1em;
+  overflow-x: auto;
+  background: var(--prose-code-bg) !important;
+}
+
+/* ——— Admonitions ——— */
+.admonition {
+  border-radius: 6px;
+  padding: 0.75em 1em;
+  margin: 1em 0;
+  border-left-width: 4px !important;
+}
+.admonition-title { font-weight: 600; margin-bottom: 0.5em; }
+.admonition-note { background: #eff6ff; border-color: #3b82f6 !important; }
+.admonition-tip { background: #f0fdf4; border-color: #22c55e !important; }
+.admonition-important { background: #faf5ff; border-color: #a855f7 !important; }
+.admonition-warning { background: #fffbeb; border-color: #f59e0b !important; }
+.admonition-caution { background: #fff1f2; border-color: #f43f5e !important; }
+
+.dark .admonition-note { background: #1e3a5f; }
+.dark .admonition-tip { background: #14532d; }
+.dark .admonition-important { background: #3b0764; }
+.dark .admonition-warning { background: #451a03; }
+.dark .admonition-caution { background: #4c0519; }
+
+/* ——— Task lists ——— */
+.task-item { list-style: none; }
+.task-checkbox { margin-right: 0.5em; }
+
+/* ——— Find highlight ——— */
+mark.find-highlight {
+  background: #fef08a;
+  color: inherit;
+  border-radius: 2px;
+}
+mark.find-highlight-active { background: #fb923c; }
+
+/* ——— Mermaid diagrams ——— */
+.mermaid-diagram {
+  text-align: center;
+  margin: 1.5em 0;
+  cursor: zoom-in;
+}
+.mermaid-error {
+  background: #fff1f2;
+  border: 1px solid #f43f5e;
+  padding: 0.5em;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.875em;
+  color: #be123c;
+}
+
+/* ——— Math ——— */
+.math { font-size: 1.1em; }
+.math-display { display: block; text-align: center; margin: 1em 0; overflow-x: auto; }
+.math-error { color: #dc2626; font-family: monospace; }
+
+/* ——— KaTeX ——— */
+@import url('https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css');
+
+/* ——— hljs theme (github-ish) ——— */
+.hljs { color: #24292e; }
+.hljs-comment, .hljs-quote { color: #6a737d; }
+.hljs-keyword, .hljs-selector-tag { color: #d73a49; font-weight: bold; }
+.hljs-string, .hljs-attr { color: #032f62; }
+.hljs-number { color: #005cc5; }
+.hljs-function, .hljs-title { color: #6f42c1; }
+.hljs-type { color: #e36209; }
+.dark .hljs { color: #cdd9e5; }
+.dark .hljs-keyword { color: #f47067; }
+.dark .hljs-string { color: #96d0ff; }
+.dark .hljs-number { color: #6cb6ff; }
+.dark .hljs-comment { color: #768390; }
+
+/* ——— Print styles (RDR-25) ——— */
+@media print {
+  .tabbar, aside, .findbar, button { display: none !important; }
+  .prose-reader { max-width: 100%; font-size: 12pt; }
+  a { color: inherit; text-decoration: none; }
+  a[href]::after { content: " (" attr(href) ")"; font-size: 0.8em; color: #666; }
 }
