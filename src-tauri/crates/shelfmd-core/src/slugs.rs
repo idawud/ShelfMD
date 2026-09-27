@@ -21,6 +21,12 @@ pub struct SlugCounter {
     counts: std::collections::HashMap<String, usize>,
 }
 
+impl Default for SlugCounter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SlugCounter {
     pub fn new() -> Self {
         Self {
