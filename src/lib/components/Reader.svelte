@@ -16,6 +16,8 @@
     rewriteImagePaths,
   } from '$lib/links.js';
   import { progressStore } from '$lib/stores/progress.svelte.js';
+  import { chaptersStore } from '$lib/stores/chapters.svelte.js';
+  import { bookmarksStore } from '$lib/stores/bookmarks.svelte.js';
   import type { Heading } from '$lib/types.js';
   import type { OpenFileResult, OpenWithMemoryResult } from '$lib/types.js';
   import TabBar from './TabBar.svelte';
@@ -25,6 +27,8 @@
   import BookSwitcher from './BookSwitcher.svelte';
   import QuickOpen from './QuickOpen.svelte';
   import SearchPanel from './SearchPanel.svelte';
+  import BookmarksPanel from './BookmarksPanel.svelte';
+  import LinkCheckerPanel from './LinkCheckerPanel.svelte';
 
   // ——— State ———
   let readerEl = $state<HTMLElement | null>(null);
@@ -34,7 +38,8 @@
   let findQuery = $state('');
   let isZenMode = $state(false);
   let sidebarOpen = $state(true);
-  let sidebarTab = $state<'outline' | 'files'>('outline');
+  let sidebarTab = $state<'outline' | 'files' | 'bookmarks'>('outline');
+  let showLinkChecker = $state(false);
   let showLightbox = $state(false);
   let lightboxSrc = $state('');
   let activeHeadingSlug = $state<string | null>(null);
@@ -222,6 +227,17 @@
     };
   });
 
+  // Load chapters when active book changes
+  $effect(() => {
+    const bk = libraryStore.activeBook;
+    if (bk) chaptersStore.loadBook(bk.book.root_path).catch(() => {});
+  });
+
+  // Load bookmarks when current file changes
+  $effect(() => {
+    if (currentFileId !== null) bookmarksStore.loadFile(currentFileId).catch(() => {});
+  });
+
   // ——— MEM-03: Progress debounce — runs while a file is open ———
   $effect(() => {
     if (currentFileId === null || !readerEl) return;
@@ -405,6 +421,30 @@
         if (libraryStore.activeBook) { showSearchPanel = true; }
         e.preventDefault();
         break;
+      case 'bookmarks-toggle':
+        if (currentFileId !== null && readerEl) {
+          const pos = getScrollPosition(readerEl);
+          bookmarksStore.add(currentFileId, pos.line, null, null).catch(() => {});
+          showToast('Bookmark added', 'info');
+        }
+        e.preventDefault();
+        break;
+      case 'prev-chapter': {
+        const { prev } = chaptersStore.adjacent(activeTab?.filePath ?? '');
+        if (prev) navigateToFile(prev);
+        e.preventDefault();
+        break;
+      }
+      case 'next-chapter': {
+        const { next } = chaptersStore.adjacent(activeTab?.filePath ?? '');
+        if (next) navigateToFile(next);
+        e.preventDefault();
+        break;
+      }
+      case 'link-checker':
+        showLinkChecker = true;
+        e.preventDefault();
+        break;
     }
   }
 
@@ -566,11 +606,35 @@ fn main() {
         title="Forward (Alt+Right)"
         aria-label="Navigate forward"
       >&#8594;</button>
+      {#if chaptersStore.adjacent(activeTab?.filePath ?? '').prev}
+        <button
+          class="p-1 rounded text-xs hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+          onclick={() => { const p = chaptersStore.adjacent(activeTab?.filePath ?? '').prev; if (p) navigateToFile(p); }}
+          title="Previous chapter (Alt+[)"
+          aria-label="Previous chapter"
+        >&#171; Prev</button>
+      {/if}
+      {#if chaptersStore.adjacent(activeTab?.filePath ?? '').next}
+        <button
+          class="p-1 rounded text-xs hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+          onclick={() => { const n = chaptersStore.adjacent(activeTab?.filePath ?? '').next; if (n) navigateToFile(n); }}
+          title="Next chapter (Alt+])"
+          aria-label="Next chapter"
+        >Next &#187;</button>
+      {/if}
       {#if activeTab?.filePath}
         <span class="ml-2 text-xs text-gray-500 dark:text-gray-400 truncate max-w-xs" title={activeTab.filePath}>
           {activeTab.filePath.split('/').pop() ?? activeTab.filePath}
         </span>
       {/if}
+      <div class="flex-1"></div>
+      <button
+        class="p-1 rounded text-xs hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+        onclick={() => { showLinkChecker = true; }}
+        title="Check links (LNK-21)"
+        aria-label="Check links in this file"
+        disabled={!activeTab?.filePath}
+      >🔗 Check</button>
     </div>
   {/if}
 
@@ -588,6 +652,10 @@ fn main() {
             class="flex-1 text-xs py-1.5 font-medium {sidebarTab === 'files' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}"
             onclick={() => { sidebarTab = 'files'; }}
           >Files</button>
+          <button
+            class="flex-1 text-xs py-1.5 font-medium {sidebarTab === 'bookmarks' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}"
+            onclick={() => { sidebarTab = 'bookmarks'; }}
+          >Marks</button>
         </div>
         {#if sidebarTab === 'outline'}
           <Outline
@@ -596,6 +664,11 @@ fn main() {
             onJump={(slug) => {
               if (readerEl) scrollToSlug(readerEl, slug);
             }}
+          />
+        {:else if sidebarTab === 'bookmarks'}
+          <BookmarksPanel
+            bookId={libraryStore.activeBook?.book.id ?? null}
+            onNavigate={(path, line) => { navigateToFile(path).then(() => { if (readerEl) scrollToLine(readerEl, line); }); }}
           />
         {:else}
           <LibrarySidebar onOpenFile={(path) => navigateToFile(path)} />
@@ -718,6 +791,15 @@ fn main() {
       bookId={libraryStore.activeBook.book.id}
       onNavigate={(path, _line) => navigateToFile(path)}
       onClose={() => { showSearchPanel = false; }}
+    />
+  {/if}
+
+  {#if showLinkChecker}
+    <LinkCheckerPanel
+      filePath={activeTab?.filePath ?? null}
+      bookRoot={libraryStore.activeBook?.book.root_path ?? null}
+      onClose={() => { showLinkChecker = false; }}
+      onJump={(line) => { if (readerEl) scrollToLine(readerEl, line); showLinkChecker = false; }}
     />
   {/if}
 </div>

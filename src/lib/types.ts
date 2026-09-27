@@ -79,3 +79,24 @@ export interface OpenWithMemoryResult {
   progress: Progress | null;
   content_changed: boolean;
 }
+
+export interface Bookmark {
+  id: number;
+  file_id: number;
+  line: number;
+  heading_text: string | null;
+  label: string | null;
+  note: string | null;
+  created_at: string;
+}
+
+export interface BookmarkWithPath {
+  bookmark: Bookmark;
+  rel_path: string;
+}
+
+export interface ScanEntry {
+  href: string;
+  line: number;
+  broken: boolean;
+}

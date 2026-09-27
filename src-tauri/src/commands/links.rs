@@ -64,3 +64,51 @@ pub fn resolve_link(
         },
     }
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ScanEntry {
+    pub href: String,
+    pub line: u32,
+    pub broken: bool,
+}
+
+/// LNK-21: Scan all internal markdown links in a file and report broken ones
+#[tauri::command]
+pub fn scan_links(file_path: String, book_root: Option<String>) -> Result<Vec<ScanEntry>, String> {
+    use std::fs;
+    let content = fs::read_to_string(&file_path).map_err(|e| e.to_string())?;
+    let current = PathBuf::from(&file_path);
+    let root = book_root.as_deref().map(PathBuf::from);
+
+    let mut entries = Vec::new();
+    for (i, line) in content.lines().enumerate() {
+        let mut pos = 0;
+        while pos < line.len() {
+            if let Some(rel) = line[pos..].find("](") {
+                let href_start = pos + rel + 2;
+                if let Some(href_end_rel) = line[href_start..].find(')') {
+                    let href = &line[href_start..href_start + href_end_rel];
+                    if !href.starts_with("http://")
+                        && !href.starts_with("https://")
+                        && !href.starts_with('#')
+                        && !href.is_empty()
+                    {
+                        let result = do_resolve(&current, href, root.as_deref());
+                        let broken = matches!(result, LinkType::Broken(_));
+                        entries.push(ScanEntry {
+                            href: href.to_string(),
+                            line: (i + 1) as u32,
+                            broken,
+                        });
+                    }
+                    pos = href_start + href_end_rel + 1;
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+    }
+    Ok(entries)
+}
