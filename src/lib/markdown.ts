@@ -1,6 +1,5 @@
-import MarkdownIt from 'markdown-it';
+import markdownit, { type MarkdownIt, type Token } from 'markdown-it';
 import hljs from 'highlight.js';
-import type Token from 'markdown-it/lib/token.mjs';
 
 // ——— Admonition types ———
 const ADMONITION_TYPES: Record<string, { icon: string; cls: string }> = {
@@ -74,7 +73,7 @@ function internalLinkPlugin(md: MarkdownIt): void {
   const origRule = md.renderer.rules.link_open;
   md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
     const token = tokens[idx];
-    const href = token.attrGet('href') ?? '';
+    const href = String(token.attrGet('href') ?? '');
     if (!href.startsWith('http://') && !href.startsWith('https://') && !href.startsWith('mailto:') && href !== '') {
       token.attrSet('data-internal', 'true');
     }
@@ -281,7 +280,7 @@ let _md: MarkdownIt | null = null;
 
 export function getMarkdownRenderer(): MarkdownIt {
   if (_md) return _md;
-  _md = new MarkdownIt({
+  _md = markdownit({
     html: true,
     linkify: true,
     typographer: true,
