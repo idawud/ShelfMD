@@ -50,9 +50,9 @@ jobs:
         working-directory: src-tauri
         run: cargo clippy --workspace -- -D warnings
 
-      - name: Run Rust tests
+      - name: Run Rust tests (all workspace members)
         working-directory: src-tauri
-        run: cargo test
+        run: cargo test --workspace
 
       - name: Check version consistency
         shell: pwsh
