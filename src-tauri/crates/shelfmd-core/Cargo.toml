@@ -1,0 +1,12 @@
+[package]
+name = "shelfmd-core"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Pure business logic for ShelfMD: link resolution, slug generation"
+
+[dependencies]
+dunce = "1"
+path-clean = "1"
+urlencoding = "2"
+serde = { version = "1", features = ["derive"] }

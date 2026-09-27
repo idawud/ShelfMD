@@ -17,6 +17,10 @@ pub fn run() {
             commands::links::resolve_link,
             commands::state::get_progress,
             commands::state::set_progress,
+            commands::files::open_file,
+            commands::files::save_file,
+            commands::files::open_path_externally,
+            commands::files::open_url_externally,
         ])
         .setup(|app| {
             let app_data_dir = app
