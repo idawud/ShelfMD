@@ -42,6 +42,9 @@ jobs:
       - name: Run frontend tests
         run: pnpm test
 
+      - name: Build frontend (required before Rust checks)
+        run: pnpm build
+
       - name: Check Rust formatting
         working-directory: src-tauri
         run: cargo fmt --check

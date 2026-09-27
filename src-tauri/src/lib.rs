@@ -1,7 +1,5 @@
 mod commands;
 mod db;
-mod resolver;
-mod slugs;
 
 use tauri::Manager;
 
