@@ -24,7 +24,7 @@ pub fn start_watch(book_id: i64, root: PathBuf, app: AppHandle) -> Result<()> {
     }
 
     let app_clone = app.clone();
-    let debouncer = new_debouncer(
+    let mut debouncer = new_debouncer(
         Duration::from_millis(300),
         move |result: Result<Vec<DebouncedEvent>, notify::Error>| {
             match result {
