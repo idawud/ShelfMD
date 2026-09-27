@@ -1,4 +1,4 @@
-use crate::resolver::{resolve_link as do_resolve, LinkType};
+use shelfmd_core::resolver::{resolve_link as do_resolve, LinkType};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 

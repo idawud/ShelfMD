@@ -296,14 +296,15 @@ fn main() {
     {/if}
 
     <!-- Reader area -->
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions a11y_no_redundant_roles -->
     <main
       class="flex-1 overflow-y-auto bg-white dark:bg-gray-900 sepia:bg-amber-50 transition-colors"
       style="zoom: {settings.zoom}"
       bind:this={readerEl}
       onscroll={handleScroll}
       onclick={handleImageClick}
+      onkeydown={handleKeydown}
       aria-label="Document content"
-      role="main"
     >
       {#if isLoading}
         <div class="flex items-center justify-center h-32 text-gray-400">
@@ -351,14 +352,16 @@ fn main() {
 
   <!-- Lightbox -->
   {#if showLightbox}
-    <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
     <div
       class="fixed inset-0 bg-black/80 flex items-center justify-center z-50"
       onclick={closeLightbox}
+      onkeydown={(e) => { if (e.key === 'Escape') closeLightbox(); }}
       role="dialog"
       aria-modal="true"
       aria-label="Image lightbox"
+      tabindex="-1"
     >
+      <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
       <img
         src={lightboxSrc}
         alt="Lightbox"
