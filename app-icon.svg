@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
+  <rect width="512" height="512" rx="80" fill="#1a1a2e"/>
+  <!-- Shelf -->
+  <rect x="48" y="320" width="416" height="20" rx="6" fill="#4a4a6a"/>
+  <!-- Book 1 (tall, blue spine) -->
+  <rect x="80" y="160" width="56" height="160" rx="6" fill="#3a86ff"/>
+  <rect x="80" y="160" width="10" height="160" rx="3" fill="#2563eb"/>
+  <!-- Book 2 (medium, purple spine) -->
+  <rect x="148" y="200" width="48" height="120" rx="6" fill="#7c3aed"/>
+  <rect x="148" y="200" width="10" height="120" rx="3" fill="#6d28d9"/>
+  <!-- Book 3 (tall, teal spine) -->
+  <rect x="208" y="150" width="52" height="170" rx="6" fill="#0d9488"/>
+  <rect x="208" y="150" width="10" height="170" rx="3" fill="#0f766e"/>
+  <!-- Book 4 (short, orange spine) -->
+  <rect x="272" y="230" width="44" height="90" rx="6" fill="#ea580c"/>
+  <rect x="272" y="230" width="10" height="90" rx="3" fill="#c2410c"/>
+  <!-- Book 5 (tall, rose spine) -->
+  <rect x="328" y="170" width="50" height="150" rx="6" fill="#e11d48"/>
+  <rect x="328" y="170" width="10" height="150" rx="3" fill="#be123c"/>
+  <!-- MD text on front of book 3 -->
+  <text x="220" y="250" font-family="monospace" font-size="22" font-weight="bold" fill="white" opacity="0.9">MD</text>
+  <!-- Decorative lines on books -->
+  <rect x="90" y="190" width="36" height="3" rx="1" fill="white" opacity="0.4"/>
+  <rect x="90" y="200" width="28" height="3" rx="1" fill="white" opacity="0.3"/>
+</svg>

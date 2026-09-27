@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+/* Reader typography */
+.prose-reader {
+  font-family: var(--reader-font, 'Georgia', serif);
+  font-size: var(--reader-size, 1rem);
+  line-height: var(--reader-lh, 1.75);
+  max-width: var(--reader-width, 72ch);
+  margin: 0 auto;
+}

@@ -1,0 +1,10 @@
+[package]
+name = "shelfmd-pure-tests"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+dunce = "1"
+path-clean = "1"
+urlencoding = "2"
+regex = "1"

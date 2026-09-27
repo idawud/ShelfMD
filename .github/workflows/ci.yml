@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    name: Check & Test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: '10'
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check frontend types
+        run: pnpm check
+
+      - name: Run frontend tests
+        run: pnpm test
+
+      - name: Check Rust formatting
+        working-directory: src-tauri
+        run: cargo fmt --check
+
+      - name: Run Clippy
+        working-directory: src-tauri
+        run: cargo clippy -- -D warnings
+
+      - name: Run Rust tests
+        working-directory: src-tauri
+        run: cargo test
+
+      - name: Check version consistency
+        shell: pwsh
+        run: |
+          $pkg = (Get-Content package.json | ConvertFrom-Json).version
+          $cargo = (Select-String 'version = "' src-tauri/Cargo.toml | Select-Object -First 1).Line -replace '.*version = "([^"]+)".*', '$1'
+          $tauri = (Get-Content src-tauri/tauri.conf.json | ConvertFrom-Json).version
+          Write-Host "package.json: $pkg, Cargo.toml: $cargo, tauri.conf.json: $tauri"
+          if ($pkg -ne $cargo -or $pkg -ne $tauri) {
+            Write-Error "Version mismatch!"
+            exit 1
+          }
+
+      - name: Build debug (verify it compiles)
+        run: pnpm tauri build --debug --no-bundle
+        env:
+          TAURI_SKIP_DEVSERVER_CHECK: true
