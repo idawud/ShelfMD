@@ -1,11 +1,19 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
+  import { invoke } from '@tauri-apps/api/core';
   import { renderMarkdown, extractHeadings, slugify } from '$lib/markdown.js';
   import { settingsStore } from '$lib/stores/settings.svelte.js';
   import { tabStore } from '$lib/stores/tabs.svelte.js';
   import { getScrollPosition, scrollToLine, scrollToSlug } from '$lib/scroll.js';
   import { matchShortcut } from '$lib/shortcuts.js';
+  import {
+    createLinkHandler,
+    createHoverHandler,
+    markBrokenLinks,
+    rewriteImagePaths,
+  } from '$lib/links.js';
   import type { Heading } from '$lib/types.js';
+  import type { OpenFileResult } from '$lib/types.js';
   import TabBar from './TabBar.svelte';
   import Outline from './Outline.svelte';
   import FindBar from './FindBar.svelte';
@@ -23,26 +31,102 @@
   let activeHeadingSlug = $state<string | null>(null);
   let toasts = $state<Array<{ id: string; message: string; type: string }>>([]);
   let isLoading = $state(false);
+  let statusText = $state('');
 
   // Derived from active tab
   let activeTab = $derived(tabStore.active);
   let content = $derived(activeTab?.content ?? '');
   let settings = $derived(settingsStore.value);
 
+  // ——— Navigation function (LNK-01, LNK-06, LNK-10/11, LNK-18) ———
+  async function navigateToFile(filePath: string, anchor?: string, newTab?: boolean) {
+    try {
+      // LNK-11: if target is already open, just focus that tab
+      const existing = tabStore.findByPath(filePath);
+      if (existing && !newTab) {
+        tabStore.activate(existing.id);
+        if (anchor) {
+          await tick();
+          if (readerEl) scrollToSlug(readerEl, anchor);
+        }
+        return;
+      }
+      if (existing && newTab) {
+        tabStore.activate(existing.id);
+        return;
+      }
+
+      const result = await invoke<OpenFileResult>('open_file', { path: filePath });
+
+      // Save current scroll before navigating
+      const currentScrollLine = readerEl ? getScrollPosition(readerEl).line : 0;
+
+      let targetTabId: string;
+      if (newTab) {
+        const tab = tabStore.open({
+          filePath: result.canonical_path,
+          title: result.file_name,
+          content: result.content,
+        });
+        targetTabId = tab.id;
+      } else {
+        if (!activeTab) return;
+        targetTabId = activeTab.id;
+
+        // Push current location to history before navigating
+        if (activeTab.filePath) {
+          tabStore.navigate(targetTabId, {
+            filePath: activeTab.filePath,
+            scrollLine: currentScrollLine,
+          });
+        }
+
+        tabStore.update(targetTabId, {
+          filePath: result.canonical_path,
+          title: result.file_name,
+          content: result.content,
+          scrollLine: 0,
+        });
+
+        // Push new location to history
+        tabStore.navigate(targetTabId, {
+          filePath: result.canonical_path,
+          anchor,
+          scrollLine: 0,
+        });
+      }
+
+      // LNK-06: scroll to anchor after render
+      if (anchor) {
+        await tick();
+        await tick();
+        if (readerEl) scrollToSlug(readerEl, anchor);
+      }
+    } catch (err) {
+      showToast(`Failed to open: ${String(err)}`, 'error');
+    }
+  }
+
   // ——— Render on content change ———
   $effect(() => {
     if (!content) { rendered = ''; headings = []; return; }
     isLoading = true;
-    renderMarkdown(content).then(html => {
+    renderMarkdown(content).then(async html => {
       rendered = html;
       headings = extractHeadings(content);
       isLoading = false;
       // Restore scroll after render
-      tick().then(() => {
-        if (readerEl && activeTab?.scrollLine) {
-          scrollToLine(readerEl, activeTab.scrollLine);
-        }
-      });
+      await tick();
+      if (readerEl && activeTab?.scrollLine) {
+        scrollToLine(readerEl, activeTab.scrollLine);
+      }
+      // LNK-15, LNK-17: post-process links and images
+      if (readerEl && activeTab?.filePath) {
+        const file = activeTab.filePath;
+        const root = null; // bookRoot not tracked at reader level yet
+        await markBrokenLinks(readerEl, file, root);
+        await rewriteImagePaths(readerEl, file, root);
+      }
     });
   });
 
@@ -66,6 +150,35 @@
     });
   });
 
+  // ——— Wire up link click and hover handlers ———
+  $effect(() => {
+    if (!readerEl) return;
+
+    const clickHandler = createLinkHandler({
+      currentFile: activeTab?.filePath ?? null,
+      bookRoot: null,
+      onNavigate: navigateToFile,
+      onToast: showToast,
+      onStatus: (t) => { statusText = t; },
+    });
+
+    const { over, out } = createHoverHandler({
+      currentFile: activeTab?.filePath ?? null,
+      bookRoot: null,
+      onStatus: (t) => { statusText = t; },
+    });
+
+    readerEl.addEventListener('click', clickHandler);
+    readerEl.addEventListener('mouseover', over);
+    readerEl.addEventListener('mouseout', out);
+
+    return () => {
+      readerEl?.removeEventListener('click', clickHandler);
+      readerEl?.removeEventListener('mouseover', over);
+      readerEl?.removeEventListener('mouseout', out);
+    };
+  });
+
   // ——— Scroll tracking for active heading ———
   let scrollDebounce: ReturnType<typeof setTimeout> | null = null;
   function handleScroll() {
@@ -78,6 +191,47 @@
         tabStore.update(activeTab.id, { scrollLine: pos.line });
       }
     }, 100);
+  }
+
+  // ——— History navigation helper ———
+  async function goBack() {
+    if (!activeTab) return;
+    const entry = tabStore.back(activeTab.id);
+    if (!entry) return;
+    try {
+      const result = await invoke<OpenFileResult>('open_file', { path: entry.filePath });
+      tabStore.update(activeTab.id, {
+        filePath: result.canonical_path,
+        title: result.file_name,
+        content: result.content,
+        scrollLine: entry.scrollLine,
+      });
+      await tick();
+      if (readerEl && entry.scrollLine) scrollToLine(readerEl, entry.scrollLine);
+      if (readerEl && entry.anchor) scrollToSlug(readerEl, entry.anchor);
+    } catch (err) {
+      showToast(`Failed to navigate back: ${String(err)}`, 'error');
+    }
+  }
+
+  async function goForward() {
+    if (!activeTab) return;
+    const entry = tabStore.forward(activeTab.id);
+    if (!entry) return;
+    try {
+      const result = await invoke<OpenFileResult>('open_file', { path: entry.filePath });
+      tabStore.update(activeTab.id, {
+        filePath: result.canonical_path,
+        title: result.file_name,
+        content: result.content,
+        scrollLine: entry.scrollLine,
+      });
+      await tick();
+      if (readerEl && entry.scrollLine) scrollToLine(readerEl, entry.scrollLine);
+      if (readerEl && entry.anchor) scrollToSlug(readerEl, entry.anchor);
+    } catch (err) {
+      showToast(`Failed to navigate forward: ${String(err)}`, 'error');
+    }
   }
 
   // ——— Keyboard shortcuts ———
@@ -172,6 +326,14 @@
         sidebarOpen = !sidebarOpen;
         e.preventDefault();
         break;
+      case 'nav-back':
+        goBack();
+        e.preventDefault();
+        break;
+      case 'nav-forward':
+        goForward();
+        e.preventDefault();
+        break;
     }
   }
 
@@ -193,10 +355,19 @@
     showLightbox = true;
   }
 
-  function closeLightbox() { showLightbox = false; lightboxSrc = ''; }
+  // ——— Combined click handler (image lightbox + link navigation) ———
+  function handleMainClick(e: MouseEvent) {
+    handleImageClick(e);
+    // Link handler is attached via $effect with addEventListener
+  }
 
-  // Suppress unused warning - showToast is used by link handler
-  void showToast;
+  // ——— Mouse button 4/5 for history (LNK-18/19/20) ———
+  function handleAuxClick(e: MouseEvent) {
+    if (e.button === 3) { goBack(); e.preventDefault(); }
+    else if (e.button === 4) { goForward(); e.preventDefault(); }
+  }
+
+  function closeLightbox() { showLightbox = false; lightboxSrc = ''; }
 
   // ——— Init ———
   onMount(() => {
@@ -226,6 +397,7 @@ Open a Markdown file with **Ctrl+O** or drag a folder onto the window.
 | \`Ctrl+T\` | New tab |
 | \`F11\` | Zen mode |
 | \`Ctrl+=\` / \`Ctrl+-\` | Zoom in/out |
+| \`Alt+Left\` / \`Alt+Right\` | Navigate back/forward |
 
 ## Math Example
 
@@ -264,6 +436,10 @@ fn main() {
     `--reader-width: ${settings.contentWidth}ch;` +
     `--reader-zoom: ${settings.zoom};`
   );
+
+  // Derived: can we go back/forward?
+  let canBack = $derived(activeTab ? tabStore.canBack(activeTab.id) : false);
+  let canForward = $derived(activeTab ? tabStore.canForward(activeTab.id) : false);
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -281,6 +457,31 @@ fn main() {
       onClose={(id) => tabStore.close(id)}
       onNew={() => tabStore.open()}
     />
+  {/if}
+
+  <!-- Nav toolbar (LNK-18/19) -->
+  {#if !isZenMode}
+    <div class="flex items-center gap-1 px-2 py-1 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 shrink-0">
+      <button
+        class="p-1 rounded text-sm disabled:opacity-30 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+        disabled={!canBack}
+        onclick={goBack}
+        title="Back (Alt+Left)"
+        aria-label="Navigate back"
+      >&#8592;</button>
+      <button
+        class="p-1 rounded text-sm disabled:opacity-30 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+        disabled={!canForward}
+        onclick={goForward}
+        title="Forward (Alt+Right)"
+        aria-label="Navigate forward"
+      >&#8594;</button>
+      {#if activeTab?.filePath}
+        <span class="ml-2 text-xs text-gray-500 dark:text-gray-400 truncate max-w-xs" title={activeTab.filePath}>
+          {activeTab.filePath.split('/').pop() ?? activeTab.filePath}
+        </span>
+      {/if}
+    </div>
   {/if}
 
   <div class="flex flex-1 overflow-hidden relative">
@@ -302,7 +503,8 @@ fn main() {
       style="zoom: {settings.zoom}"
       bind:this={readerEl}
       onscroll={handleScroll}
-      onclick={handleImageClick}
+      onclick={handleMainClick}
+      onauxclick={handleAuxClick}
       onkeydown={handleKeydown}
       aria-label="Document content"
     >
@@ -318,7 +520,7 @@ fn main() {
         </article>
       {:else}
         <div class="flex flex-col items-center justify-center h-full text-gray-400 gap-4">
-          <div class="text-6xl">📚</div>
+          <div class="text-6xl">&#128218;</div>
           <p class="text-lg">Open a Markdown file to get started</p>
           <p class="text-sm">Ctrl+O or drag a file here</p>
         </div>
@@ -334,6 +536,13 @@ fn main() {
       onClose={() => { findOpen = false; }}
       onQueryChange={(q) => { findQuery = q; }}
     />
+  {/if}
+
+  <!-- LNK-16: Status bar -->
+  {#if statusText}
+    <div class="px-3 py-1 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 truncate shrink-0">
+      {statusText}
+    </div>
   {/if}
 
   <!-- Toasts -->

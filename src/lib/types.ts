@@ -45,3 +45,9 @@ export interface ResolveResult {
   anchor: string | null;
   link_type: 'md' | 'asset' | 'external' | 'broken';
 }
+
+export interface OpenFileResult {
+  content: string;
+  canonical_path: string;
+  file_name: string;
+}

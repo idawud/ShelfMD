@@ -132,6 +132,95 @@ pub fn resolve_link(current_file: &Path, href: &str, book_root: Option<&Path>) -
 }
 
 #[cfg(test)]
+mod fixture_tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    fn fixture_root() -> PathBuf {
+        // Resolve relative to CARGO_MANIFEST_DIR
+        let manifest = env!("CARGO_MANIFEST_DIR");
+        PathBuf::from(manifest)
+            .parent().unwrap() // crates/
+            .parent().unwrap() // src-tauri/
+            .parent().unwrap() // ShelfMD/
+            .join("tests/fixtures/book")
+    }
+
+    fn fixture_file(rel: &str) -> PathBuf {
+        fixture_root().join(rel)
+    }
+
+    // AT-01: ch01.md → [Next](../ch 02/README.md#setup)
+    #[test]
+    fn resolves_spaced_folder_with_anchor() {
+        let current = fixture_file("part1/ch01/README.md");
+        let root = fixture_root();
+        let result = resolve_link(&current, "../ch 02/README.md#setup", Some(&root));
+        match result {
+            LinkType::Markdown(path, Some(anchor)) => {
+                assert!(path.exists(), "resolved path must exist: {:?}", path);
+                assert_eq!(anchor, "setup");
+            }
+            other => panic!("expected Markdown with anchor, got {:?}", other),
+        }
+    }
+
+    // AT-03: extensionless link
+    #[test]
+    fn resolves_extensionless_link() {
+        let current = fixture_file("README.md");
+        let root = fixture_root();
+        let result = resolve_link(&current, "intro", Some(&root));
+        match result {
+            LinkType::Markdown(path, None) => {
+                assert!(path.exists(), "resolved path must exist: {:?}", path);
+                assert!(path.to_string_lossy().ends_with("intro.md"));
+            }
+            other => panic!("expected Markdown, got {:?}", other),
+        }
+    }
+
+    // Broken link stays broken
+    #[test]
+    fn broken_link_against_fixture() {
+        let current = fixture_file("part1/ch01/README.md");
+        let root = fixture_root();
+        let result = resolve_link(&current, "../missing/chapter.md", Some(&root));
+        assert!(matches!(result, LinkType::Broken(_)));
+    }
+
+    // URL-encoded space in path
+    #[test]
+    fn resolves_url_encoded_space() {
+        let current = fixture_file("part1/ch01/README.md");
+        let root = fixture_root();
+        // URL-encoded version of "../ch 02/README.md"
+        let result = resolve_link(&current, "../ch%2002/README.md", Some(&root));
+        match result {
+            LinkType::Markdown(path, None) => {
+                assert!(path.exists(), "resolved path must exist: {:?}", path);
+            }
+            other => panic!("expected Markdown, got {:?}", other),
+        }
+    }
+
+    // Root-relative path
+    #[test]
+    fn resolves_root_relative_path() {
+        let current = fixture_file("part1/ch01/README.md");
+        let root = fixture_root();
+        let result = resolve_link(&current, "/GLOSSARY.md", Some(&root));
+        match result {
+            LinkType::Markdown(path, None) => {
+                assert!(path.exists(), "resolved path must exist: {:?}", path);
+                assert!(path.to_string_lossy().ends_with("GLOSSARY.md"));
+            }
+            other => panic!("expected Markdown, got {:?}", other),
+        }
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use std::path::PathBuf;

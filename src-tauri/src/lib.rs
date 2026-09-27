@@ -15,6 +15,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
             commands::links::resolve_link,
+            commands::links::check_anchor_exists,
             commands::state::get_progress,
             commands::state::set_progress,
             commands::files::open_file,
