@@ -94,13 +94,39 @@ Recommended screenshots:
 
 ## Secrets Required in GitHub Actions
 
+None of these are required to build a release — every step runs without them.
+Set them with `gh secret set <NAME>` (prompts for the value) or in
+Settings → Secrets and variables → Actions.
+
+### Tauri updater signing (only if the updater plugin is enabled)
+
 | Secret | Description |
 |--------|-------------|
-| `TAURI_SIGNING_PRIVATE_KEY` | Code-signing private key (PEM) |
-| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Passphrase for the signing key |
-| `MS_TENANT_ID` | Azure AD tenant ID for Store API |
-| `MS_CLIENT_ID` | Azure AD application client ID |
-| `MS_CLIENT_SECRET` | Azure AD client secret |
-| `MS_SELLER_ID` | Partner Center seller ID |
+| `TAURI_SIGNING_PRIVATE_KEY` | Updater signing private key (minisign format, from `pnpm tauri signer generate`) |
+| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Password for that key |
 
-See [Tauri v2 code signing docs](https://tauri.app/distribute/sign/windows/) for generating signing keys.
+These sign update artifacts for `tauri-plugin-updater`; they are **not**
+Authenticode code-signing certificates and do not sign the `.exe`/`.msi`.
+ShelfMD does not use the updater yet. If it is added, put the matching public
+key in `tauri.conf.json` → `plugins.updater.pubkey` and back up the private key —
+losing it breaks updates for installed copies.
+
+### Microsoft Store submission (Partner Center API)
+
+| Secret | Where to find it |
+|--------|------------------|
+| `MS_SELLER_ID` | Partner Center → Account settings → Legal info → Developer tab |
+| `MS_TENANT_ID` | Partner Center → Account settings → User management → Microsoft Entra applications → your app |
+| `MS_CLIENT_ID` | Same app page as the tenant ID |
+| `MS_CLIENT_SECRET` | Same app → Keys → Add new key (shown once; it expires, so rotate it before then) |
+
+The Entra application needs the **Manager** role in Partner Center. The
+release workflow's store step runs only when all four are set, and is currently
+a placeholder.
+
+### Code signing
+
+Authenticode signing of the installers (avoids SmartScreen warnings) is
+separate — configure `bundle.windows.certificateThumbprint` or a `signCommand`
+(e.g. Azure Trusted Signing) in `tauri.conf.json`. See the
+[Tauri v2 Windows signing docs](https://tauri.app/distribute/sign/windows/).

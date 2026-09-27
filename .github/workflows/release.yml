@@ -17,6 +17,13 @@ jobs:
     runs-on: windows-latest
     permissions:
       contents: write
+    # Store secrets live at job level so the submit step's `if:` can test them
+    # through `env` — the `secrets` context is not allowed in step conditions.
+    env:
+      MS_TENANT_ID: ${{ secrets.MS_TENANT_ID }}
+      MS_CLIENT_ID: ${{ secrets.MS_CLIENT_ID }}
+      MS_CLIENT_SECRET: ${{ secrets.MS_CLIENT_SECRET }}
+      MS_SELLER_ID: ${{ secrets.MS_SELLER_ID }}
 
     steps:
       - uses: actions/checkout@v7
@@ -89,14 +96,9 @@ jobs:
       # Configure the four secrets in repo Settings → Secrets before enabling.
       - name: Submit to Microsoft Store
         if: |
-          secrets.MS_TENANT_ID != '' &&
-          secrets.MS_CLIENT_ID != '' &&
-          secrets.MS_CLIENT_SECRET != '' &&
-          secrets.MS_SELLER_ID != ''
+          env.MS_TENANT_ID != '' &&
+          env.MS_CLIENT_ID != '' &&
+          env.MS_CLIENT_SECRET != '' &&
+          env.MS_SELLER_ID != ''
         run: |
           Write-Host "Store submission — configure after Partner Center setup (see docs/STORE_RELEASE.md)"
-        env:
-          MS_TENANT_ID: ${{ secrets.MS_TENANT_ID }}
-          MS_CLIENT_ID: ${{ secrets.MS_CLIENT_ID }}
-          MS_CLIENT_SECRET: ${{ secrets.MS_CLIENT_SECRET }}
-          MS_SELLER_ID: ${{ secrets.MS_SELLER_ID }}
