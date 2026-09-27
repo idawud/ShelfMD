@@ -14,8 +14,13 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
+            commands::bookmarks::add_bookmark,
+            commands::bookmarks::list_bookmarks,
+            commands::bookmarks::list_book_bookmarks,
+            commands::bookmarks::remove_bookmark,
             commands::links::resolve_link,
             commands::links::check_anchor_exists,
+            commands::links::scan_links,
             commands::state::get_progress,
             commands::state::set_progress,
             commands::state::open_file_with_memory,
@@ -23,6 +28,8 @@ pub fn run() {
             commands::state::get_book_progress_cmd,
             commands::state::get_session,
             commands::state::set_session,
+            commands::state::export_progress,
+            commands::state::import_progress,
             commands::files::open_file,
             commands::files::save_file,
             commands::files::open_path_externally,

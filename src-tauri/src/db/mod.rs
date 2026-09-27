@@ -1,3 +1,4 @@
+pub mod bookmarks;
 pub mod library;
 pub mod progress;
 mod schema;

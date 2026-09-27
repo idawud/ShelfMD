@@ -17,7 +17,11 @@ export type ShortcutAction =
   | 'copy-rich' | 'copy-raw'
   | 'book-switcher'
   | 'quick-open'
-  | 'book-search';
+  | 'book-search'
+  | 'prev-chapter'
+  | 'next-chapter'
+  | 'bookmarks-toggle'
+  | 'link-checker';
 
 export interface KeyBinding {
   key: string;
@@ -68,6 +72,10 @@ export const DEFAULT_KEYMAP: KeyMap = {
   'book-switcher':    [{ key: 'o', ctrl: true, shift: true }],
   'quick-open':       [{ key: 'p', ctrl: true }],
   'book-search':      [{ key: 'f', ctrl: true, shift: true }],
+  'prev-chapter':     [{ key: '[', alt: true }],
+  'next-chapter':     [{ key: ']', alt: true }],
+  'bookmarks-toggle': [{ key: 'd', ctrl: true, shift: true }],
+  'link-checker':     [],
 };
 
 function matchesBinding(e: KeyboardEvent, binding: KeyBinding): boolean {

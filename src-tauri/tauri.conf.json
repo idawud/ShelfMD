@@ -42,6 +42,14 @@
     "category": "Productivity",
     "shortDescription": "Markdown book reader",
     "longDescription": "Read multi-file Markdown books with cross-file links, reading memory, and beautiful typography.",
+    "fileAssociations": [
+      {
+        "ext": ["md", "markdown"],
+        "name": "Markdown Document",
+        "description": "Markdown book file",
+        "role": "Viewer"
+      }
+    ],
     "windows": {
       "certificateThumbprint": null,
       "digestAlgorithm": "sha256",
