@@ -19,17 +19,17 @@ on:
 
 jobs:
   bump:
-    name: Bump version and tag
+    name: Bump version and open release PR
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
 
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-          # Use a PAT so the pushed tag triggers release.yml.
-          # Falls back to GITHUB_TOKEN (tag push will NOT re-trigger workflows).
+          # A PAT lets the release PR trigger CI; GITHUB_TOKEN-created PRs don't.
           token: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
 
       - name: Compute new version
@@ -85,18 +85,22 @@ jobs:
             exit 1
           fi
 
-      - name: Commit version bump
+      - name: Open release PR
         if: ${{ !inputs.dry_run }}
+        env:
+          # main is protected by a ruleset (PR + code-owner review required), so the
+          # bump lands via a PR. tag-release.yml tags the merge commit afterwards.
+          GH_TOKEN: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
         run: |
+          branch="release/${{ steps.ver.outputs.tag }}"
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
           git add package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json
           git commit -m "chore(release): bump version to ${{ steps.ver.outputs.tag }}"
-          git push origin HEAD:main
-
-      - name: Create and push tag
-        if: ${{ !inputs.dry_run }}
-        run: |
-          git tag "${{ steps.ver.outputs.tag }}"
-          git push origin "${{ steps.ver.outputs.tag }}"
-          echo "✓ Tag ${{ steps.ver.outputs.tag }} pushed — release.yml will start automatically."
+          git push origin "$branch"
+          gh pr create \
+            --base main \
+            --head "$branch" \
+            --title "chore(release): bump version to ${{ steps.ver.outputs.tag }}" \
+            --body "Bumps package.json, Cargo.toml and tauri.conf.json from ${{ steps.ver.outputs.current }} to ${{ steps.ver.outputs.new }}. Merging this PR tags \`${{ steps.ver.outputs.tag }}\` and starts the release build."
