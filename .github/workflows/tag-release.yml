@@ -1,0 +1,42 @@
+name: Tag Release
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+jobs:
+  tag:
+    name: Tag merged release PR
+    if: github.event.pull_request.merged && startsWith(github.head_ref, 'release/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+
+      - name: Create and push tag
+        id: tag
+        run: |
+          tag="${GITHUB_HEAD_REF#release/}"
+          git tag "$tag"
+          git push origin "$tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      # Tags pushed with GITHUB_TOKEN don't trigger release.yml's push event,
+      # so dispatch it explicitly.
+      - name: Start release build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run release.yml --ref main -f tag="${{ steps.tag.outputs.tag }}"
+          echo "✓ Tag ${{ steps.tag.outputs.tag }} pushed — release.yml dispatched."
+
+      - name: Delete release branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: git push origin --delete "$GITHUB_HEAD_REF" || true
