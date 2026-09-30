@@ -26,7 +26,7 @@
     "svelte": "^5.33.13",
     "svelte-check": "^4.2.1",
     "tailwindcss": "^4.1.8",
-    "typescript": "~6",
+    "typescript": "~7",
     "vite": "^8.3.1",
     "vitest": "^5.0.1"
   },
@@ -49,5 +49,12 @@
     "markdown-it-footnote": "^4.0.0",
     "markdown-it-task-lists": "^2.1.1",
     "mermaid": "^12.0.0"
+  },
+  "pnpm": {
+    "peerDependencyRules": {
+      "allowedVersions": {
+        "typescript": "7"
+      }
+    }
   }
 }
