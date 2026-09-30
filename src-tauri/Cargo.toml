@@ -42,7 +42,6 @@ tantivy = "0.22"
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
-store = []
 
 [profile.release]
 opt-level = "s"

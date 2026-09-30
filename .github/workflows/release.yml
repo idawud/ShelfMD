@@ -64,10 +64,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
-      # MSIX for Microsoft Store — built separately because it may require
-      # a Store-issued certificate. Build succeeds unsigned; sign before
-      # uploading to Partner Center (see docs/STORE_RELEASE.md).
-      - name: Build MSI (MSIX-ready bundle)
+      - name: Build MSI installer
         run: pnpm tauri build --bundles msi
         env:
           TAURI_SKIP_DEVSERVER_CHECK: true
@@ -85,18 +82,25 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Optional: submit to Microsoft Store via Partner Center API.
-      # Configure the four secrets in repo Settings → Secrets before enabling.
-      - name: Submit to Microsoft Store
-        if: |
-          secrets.MS_TENANT_ID != '' &&
-          secrets.MS_CLIENT_ID != '' &&
-          secrets.MS_CLIENT_SECRET != '' &&
-          secrets.MS_SELLER_ID != ''
+      # Commit the installers into releases/<tag>/ on main so they can be
+      # downloaded straight from the repo tree.
+      - name: Commit installers to releases/
+        shell: pwsh
         run: |
-          Write-Host "Store submission — configure after Partner Center setup (see docs/STORE_RELEASE.md)"
-        env:
-          MS_TENANT_ID: ${{ secrets.MS_TENANT_ID }}
-          MS_CLIENT_ID: ${{ secrets.MS_CLIENT_ID }}
-          MS_CLIENT_SECRET: ${{ secrets.MS_CLIENT_SECRET }}
-          MS_SELLER_ID: ${{ secrets.MS_SELLER_ID }}
+          $tag = "${{ inputs.tag || github.ref_name }}"
+          git fetch origin main
+          git checkout -B main origin/main
+          $dest = "releases/$tag"
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          Copy-Item src-tauri/target/release/bundle/nsis/*.exe $dest
+          Copy-Item src-tauri/target/release/bundle/msi/*.msi $dest
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add $dest
+          git diff --cached --quiet
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "No changes in $dest — nothing to commit."
+            exit 0
+          }
+          git commit -m "chore(release): add $tag installers [skip ci]"
+          git push origin main
