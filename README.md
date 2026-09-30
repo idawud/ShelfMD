@@ -67,6 +67,19 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). All contributions welcome — bug fixes,
 
 ---
 
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org).
+
+- Committers and reviewers: [idawud](https://github.com/idawud)
+- Approvers: [idawud](https://github.com/idawud)
+
+Windows installers are built from this repository by GitHub Actions ([release.yml](.github/workflows/release.yml)) and signed only after manual approval.
+
+**Privacy:** ShelfMD does not send any information to networked systems unless the user explicitly requests it.
+
+---
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
