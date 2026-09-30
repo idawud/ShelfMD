@@ -5,7 +5,8 @@ updates:
     schedule:
       interval: "weekly"
     ignore:
-      # svelte-check does not yet support TypeScript 7 without --tsgo
+      # `typescript` must stay on 6 for svelte-check; TS 7 runs via the
+      # @typescript/native alias with `svelte-check --tsgo`
       - dependency-name: "typescript"
         update-types: ["version-update:semver-major"]
   - package-ecosystem: "cargo"
