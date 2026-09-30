@@ -9,7 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Release pipeline**: installers (NSIS + MSI) are now committed to `releases/<tag>/` on `main` in addition to the GitHub Release
 - **Removed** Microsoft Store publishing (Store submission step, `docs/STORE_RELEASE.md`, `store/listing.md`, `store` Cargo feature)
 
 ### Added (M0 — Reader Foundation)

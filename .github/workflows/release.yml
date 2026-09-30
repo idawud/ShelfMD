@@ -82,25 +82,3 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Commit the installers into releases/<tag>/ on main so they can be
-      # downloaded straight from the repo tree.
-      - name: Commit installers to releases/
-        shell: pwsh
-        run: |
-          $tag = "${{ inputs.tag || github.ref_name }}"
-          git fetch origin main
-          git checkout -B main origin/main
-          $dest = "releases/$tag"
-          New-Item -ItemType Directory -Force -Path $dest | Out-Null
-          Copy-Item src-tauri/target/release/bundle/nsis/*.exe $dest
-          Copy-Item src-tauri/target/release/bundle/msi/*.msi $dest
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add $dest
-          git diff --cached --quiet
-          if ($LASTEXITCODE -eq 0) {
-            Write-Host "No changes in $dest — nothing to commit."
-            exit 0
-          }
-          git commit -m "chore(release): add $tag installers [skip ci]"
-          git push origin main
