@@ -36,13 +36,7 @@ Single-file Markdown viewers fail at reading books in three ways:
 
 ## Installation
 
-### Microsoft Store (recommended)
-
-*Coming soon — [Store page](https://apps.microsoft.com)*
-
-### GitHub Releases (NSIS installer)
-
-Download the latest `.exe` from [Releases](https://github.com/idawud/ShelfMD/releases).
+Download the latest installer (NSIS `.exe` or `.msi`) from [GitHub Releases](https://github.com/idawud/ShelfMD/releases).
 
 ---
 

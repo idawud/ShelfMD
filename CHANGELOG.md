@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Removed** Microsoft Store publishing (Store submission step, `docs/STORE_RELEASE.md`, `store/listing.md`, `store` Cargo feature)
+
 ### Added (M0 — Reader Foundation)
 
 - **Project scaffold**: Tauri v2 + SvelteKit + Svelte 5 + TypeScript + Tailwind v4

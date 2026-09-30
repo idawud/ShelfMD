@@ -64,10 +64,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
-      # MSIX for Microsoft Store — built separately because it may require
-      # a Store-issued certificate. Build succeeds unsigned; sign before
-      # uploading to Partner Center (see docs/STORE_RELEASE.md).
-      - name: Build MSI (MSIX-ready bundle)
+      - name: Build MSI installer
         run: pnpm tauri build --bundles msi
         env:
           TAURI_SKIP_DEVSERVER_CHECK: true
@@ -85,18 +82,3 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Optional: submit to Microsoft Store via Partner Center API.
-      # Configure the four secrets in repo Settings → Secrets before enabling.
-      - name: Submit to Microsoft Store
-        if: |
-          secrets.MS_TENANT_ID != '' &&
-          secrets.MS_CLIENT_ID != '' &&
-          secrets.MS_CLIENT_SECRET != '' &&
-          secrets.MS_SELLER_ID != ''
-        run: |
-          Write-Host "Store submission — configure after Partner Center setup (see docs/STORE_RELEASE.md)"
-        env:
-          MS_TENANT_ID: ${{ secrets.MS_TENANT_ID }}
-          MS_CLIENT_ID: ${{ secrets.MS_CLIENT_ID }}
-          MS_CLIENT_SECRET: ${{ secrets.MS_CLIENT_SECRET }}
-          MS_SELLER_ID: ${{ secrets.MS_SELLER_ID }}
