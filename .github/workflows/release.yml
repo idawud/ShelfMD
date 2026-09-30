@@ -74,6 +74,8 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
+          # On workflow_dispatch github.ref is the branch, so the action can't infer the tag.
+          tag_name: ${{ inputs.tag || github.ref_name }}
           draft: true
           generate_release_notes: true
           files: |
