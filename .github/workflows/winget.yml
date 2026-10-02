@@ -1,0 +1,22 @@
+name: Publish to WinGet
+
+# release.yml creates draft releases; this runs once a draft is published,
+# because winget-pkgs needs the installer URLs to be publicly downloadable.
+on:
+  release:
+    types: [released]
+
+jobs:
+  publish:
+    name: Open winget-pkgs PR
+    runs-on: ubuntu-latest
+
+    steps:
+      # Updates only — the first version of idawud.ShelfMD must already be in
+      # microsoft/winget-pkgs (see docs/WINGET.md).
+      - uses: vedantmgoyal9/winget-releaser@v2
+        with:
+          identifier: idawud.ShelfMD
+          installers-regex: '\.(exe|msi)$'
+          max-versions-to-keep: 5
+          token: ${{ secrets.WINGET_TOKEN }}
