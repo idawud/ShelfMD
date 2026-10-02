@@ -36,7 +36,16 @@ Single-file Markdown viewers fail at reading books in three ways:
 
 ## Installation
 
-Download the latest installer (NSIS `.exe` or `.msi`) from [GitHub Releases](https://github.com/idawud/ShelfMD/releases).
+**Recommended — winget:**
+
+```powershell
+winget install idawud.ShelfMD
+```
+
+**Or** download the latest installer (NSIS `.exe` or `.msi`) from [GitHub Releases](https://github.com/idawud/ShelfMD/releases).
+The installers aren't code-signed yet, so the browser and SmartScreen will warn that the file "isn't commonly downloaded".
+To proceed: in the browser's download list choose **⋯ → Keep → Show more → Keep anyway**, then in the SmartScreen dialog
+choose **More info → Run anyway**.
 
 ---
 

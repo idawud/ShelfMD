@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **WinGet distribution**: `winget install idawud.ShelfMD`; `winget.yml` opens a winget-pkgs PR whenever a release is published (see `docs/WINGET.md`)
+
 ### Changed
 
 - **Removed** Microsoft Store publishing (Store submission step, `docs/STORE_RELEASE.md`, `store/listing.md`, `store` Cargo feature)
