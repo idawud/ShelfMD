@@ -3,13 +3,20 @@ mod db;
 mod search;
 mod watcher;
 
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 pub fn run() {
     env_logger::init();
 
     tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            // A second launch (e.g. double-clicking another .md) hands its files to this window.
+            let files = commands::launch::markdown_args(&args);
+            if !files.is_empty() {
+                if let Err(error) = app.emit("open-files", files) {
+                    log::warn!("Failed to forward files to the main window: {error}");
+                }
+            }
             if let Some(window) = app.get_webview_window("main") {
                 if let Err(error) = window.unminimize() {
                     log::warn!("Failed to restore the existing window: {error}");
@@ -60,6 +67,7 @@ pub fn run() {
             commands::library::touch_book,
             commands::library::get_reading_order,
             commands::jumplist::update_jump_list,
+            commands::launch::get_launch_files,
         ])
         .setup(|app| {
             let window_icon = app

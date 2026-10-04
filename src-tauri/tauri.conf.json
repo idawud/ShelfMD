@@ -48,7 +48,9 @@
       {
         "ext": [
           "md",
-          "markdown"
+          "markdown",
+          "mdown",
+          "mkd"
         ],
         "name": "Markdown Document",
         "description": "Markdown book file",
