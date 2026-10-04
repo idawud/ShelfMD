@@ -4,7 +4,7 @@ resolver = "2"
 
 [package]
 name = "shelfmd"
-version = "2.1.0"
+version = "2.1.1"
 description = "A beautiful Markdown book reader for Windows"
 authors = ["Idawud"]
 license = "MIT"
