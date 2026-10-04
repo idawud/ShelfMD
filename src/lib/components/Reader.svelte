@@ -720,8 +720,24 @@ fn main() {
       });
     }
 
-    restoreWorkspace();
+    // Files handed to us by the OS ("Open with" / double-click) open after the saved session is back.
+    restoreWorkspace().then(async () => {
+      const files = await invoke<string[]>('get_launch_files').catch(() => [] as string[]);
+      await openExternalFiles(files);
+    });
+    listen<string[]>('open-files', (event) => openExternalFiles(event.payload)).catch(() => {});
   });
+
+  async function openExternalFiles(paths: string[]) {
+    for (const path of paths) await navigateToFile(path, undefined, true);
+    // Drop the placeholder Welcome tab once a real file is open.
+    const blank = tabStore.tabs.find(t => !t.filePath);
+    if (paths.length > 0 && blank && tabStore.tabs.length > 1) {
+      const activeId = tabStore.active?.id;
+      tabStore.close(blank.id);
+      if (activeId) tabStore.activate(activeId);
+    }
+  }
 
   let textColor = $derived(settings.textColors[settings.theme] ?? DEFAULT_TEXT_COLORS[settings.theme]);
   let hasCustomTextColor = $derived(settings.textColors[settings.theme] !== undefined);
