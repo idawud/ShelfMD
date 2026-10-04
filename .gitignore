@@ -3,6 +3,7 @@ node_modules
 /.svelte-kit
 /dist
 target/
+src-tauri/gen/schemas
 *.orig
 *.bk
 .env
