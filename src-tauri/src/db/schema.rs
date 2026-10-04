@@ -9,7 +9,8 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
     ",
     )?;
 
-    let version: i32 = conn.query_row("SELECT version FROM schema_version", [], |r| r.get(0))?;
+    let version: i32 = conn.query_row("SELECT MAX(version) FROM schema_version", [], |r| r.get(0))?;
+    conn.execute("DELETE FROM schema_version WHERE version != ?1", [version])?;
 
     if version < 1 {
         conn.execute_batch(
@@ -86,4 +87,27 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn repeated_migrations_keep_one_schema_version() {
+        let conn = Connection::open_in_memory().unwrap();
+
+        run_migrations(&conn).unwrap();
+        run_migrations(&conn).unwrap();
+
+        let version_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM schema_version", [], |row| row.get(0))
+            .unwrap();
+        let version: i32 = conn
+            .query_row("SELECT version FROM schema_version", [], |row| row.get(0))
+            .unwrap();
+
+        assert_eq!(version_count, 1);
+        assert_eq!(version, 1);
+    }
 }
