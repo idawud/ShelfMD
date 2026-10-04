@@ -33,6 +33,7 @@
 
   const MIN_FONT_SIZE = 12;
   const MAX_FONT_SIZE = 32;
+  const THEMES = ['light', 'dark', 'sepia'] as const;
 
   // ——— State ———
   let readerEl = $state<HTMLElement | null>(null);
@@ -54,6 +55,7 @@
   let showSwitcher = $state(false);
   let showQuickOpen = $state(false);
   let showSearchPanel = $state(false);
+  let showThemeSettings = $state(false);
 
   // Derived from active tab
   let activeTab = $derived(tabStore.active);
@@ -545,6 +547,11 @@
     });
   }
 
+  function changeTheme(theme: 'light' | 'dark' | 'sepia') {
+    settingsStore.update({ theme });
+    showThemeSettings = false;
+  }
+
   // ——— Init ———
   onMount(() => {
     libraryStore.load().catch(() => {});
@@ -629,6 +636,7 @@ fn main() {
     `--reader-size: ${settings.fontSize}px;` +
     `--reader-lh: ${settings.lineHeight};` +
     `--reader-width: ${settings.contentWidth}ch;` +
+    `--reader-text: ${settings.theme === 'dark' ? '#ffffff' : settings.theme === 'sepia' ? '#292524' : '#111827'};` +
     `--reader-zoom: ${settings.zoom};`
   );
 
@@ -656,7 +664,7 @@ fn main() {
 
   <!-- Nav toolbar (LNK-18/19) -->
   {#if !isZenMode}
-    <div class="flex items-center gap-1 px-2 py-1 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 shrink-0">
+    <div class="relative flex items-center gap-1 px-2 py-1 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 shrink-0">
       <button
         class="p-1 rounded text-sm disabled:opacity-30 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
         disabled={!canBack}
@@ -733,6 +741,37 @@ fn main() {
         </svg>
         <span>Check links</span>
       </button>
+      <button
+        class="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+        onclick={() => { showThemeSettings = !showThemeSettings; }}
+        title="Settings: change theme"
+        aria-label="Settings: change theme"
+        aria-haspopup="dialog"
+        aria-expanded={showThemeSettings}
+      >
+        <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" class="w-4 h-4">
+          <path d="M8.7 2.6h2.6l.4 1.8a5.8 5.8 0 0 1 1.2.7l1.8-.6 1.3 2.2-1.4 1.3a5.4 5.4 0 0 1 0 1.4l1.4 1.3-1.3 2.2-1.8-.6a5.8 5.8 0 0 1-1.2.7l-.4 1.8H8.7l-.4-1.8a5.8 5.8 0 0 1-1.2-.7l-1.8.6L4 10.7l1.4-1.3a5.4 5.4 0 0 1 0-1.4L4 6.7l1.3-2.2 1.8.6a5.8 5.8 0 0 1 1.2-.7l.4-1.8Z" transform="translate(1 0)" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" />
+          <circle cx="10" cy="8.7" r="2.2" stroke="currentColor" stroke-width="1.4" />
+        </svg>
+      </button>
+      {#if showThemeSettings}
+        <div
+          class="absolute right-2 top-full z-50 mt-1 w-48 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 shadow-lg"
+          role="dialog"
+          aria-label="Reader settings"
+        >
+          <p class="mb-2 text-xs font-semibold text-gray-700 dark:text-gray-200">Appearance</p>
+          <div class="grid grid-cols-3 gap-1" role="group" aria-label="Color theme">
+            {#each THEMES as theme}
+              <button
+                class="rounded px-2 py-1.5 text-xs capitalize transition-colors {settings.theme === theme ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700'}"
+                onclick={() => changeTheme(theme)}
+                aria-pressed={settings.theme === theme}
+              >{theme}</button>
+            {/each}
+          </div>
+        </div>
+      {/if}
     </div>
   {/if}
 
