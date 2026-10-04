@@ -212,6 +212,9 @@
       await treeStore.loadBook(book.id, book.root_path);
       sidebarOpen = true;
       sidebarTab = 'files';
+      // The file-less start tab represents the opened folder, so name it after the folder.
+      const startTab = tabStore.tabs.find(t => !t.filePath);
+      if (startTab) tabStore.update(startTab.id, { title: book.name });
       showToast(`Opened ${book.name}. Choose a Markdown file from Files.`, 'info');
     } catch (err) {
       showToast(`Failed to open folder: ${String(err)}`, 'error');
@@ -603,6 +606,8 @@
       if (book) {
         libraryStore.setActive(book.id);
         treeStore.loadBook(book.id, book.root_path).catch(() => {});
+        const startTab = tabStore.tabs.find(t => !t.filePath);
+        if (startTab) tabStore.update(startTab.id, { title: book.name });
       }
 
       const blank = tabStore.tabs[0];
