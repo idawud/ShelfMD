@@ -2,6 +2,7 @@
   import { onMount, tick } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { listen } from '@tauri-apps/api/event';
+  import { open as openDialog } from '@tauri-apps/plugin-dialog';
   import { renderMarkdown, extractHeadings, slugify } from '$lib/markdown.js';
   import { settingsStore } from '$lib/stores/settings.svelte.js';
   import { tabStore } from '$lib/stores/tabs.svelte.js';
@@ -30,6 +31,10 @@
   import BookmarksPanel from './BookmarksPanel.svelte';
   import LinkCheckerPanel from './LinkCheckerPanel.svelte';
 
+  const MIN_FONT_SIZE = 12;
+  const MAX_FONT_SIZE = 32;
+  const THEMES = ['light', 'dark', 'sepia'] as const;
+
   // ——— State ———
   let readerEl = $state<HTMLElement | null>(null);
   let rendered = $state('');
@@ -50,11 +55,21 @@
   let showSwitcher = $state(false);
   let showQuickOpen = $state(false);
   let showSearchPanel = $state(false);
+  let showThemeSettings = $state(false);
 
   // Derived from active tab
   let activeTab = $derived(tabStore.active);
   let content = $derived(activeTab?.content ?? '');
   let settings = $derived(settingsStore.value);
+
+  function bookIdForPath(filePath: string): number | null {
+    const book = libraryStore.activeBook?.book;
+    if (!book) return null;
+
+    const normalize = (path: string) =>
+      path.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+    return normalize(filePath).startsWith(`${normalize(book.root_path)}/`) ? book.id : null;
+  }
 
   // ——— Navigation function (LNK-01, LNK-06, LNK-10/11, LNK-18) ———
   async function navigateToFile(filePath: string, anchor?: string, newTab?: boolean) {
@@ -79,7 +94,10 @@
         await progressStore.save(currentFileId, readerEl);
       }
 
-      const result = await invoke<OpenWithMemoryResult>('open_file_with_memory', { path: filePath, bookId: null });
+      const result = await invoke<OpenWithMemoryResult>('open_file_with_memory', {
+        path: filePath,
+        bookId: bookIdForPath(filePath),
+      });
 
       // Save current scroll before navigating
       const currentScrollLine = readerEl ? getScrollPosition(readerEl).line : 0;
@@ -152,6 +170,45 @@
       }
     } catch (err) {
       showToast(`Failed to open: ${String(err)}`, 'error');
+    }
+  }
+
+  async function openMarkdownFile() {
+    try {
+      const selected = await openDialog({
+        multiple: false,
+        filters: [{ name: 'Markdown', extensions: ['md', 'markdown', 'mdown', 'mkd'] }],
+      });
+      if (typeof selected === 'string') await navigateToFile(selected);
+    } catch (err) {
+      showToast(`Failed to open file: ${String(err)}`, 'error');
+    }
+  }
+
+  async function openBookFolder() {
+    try {
+      const selected = await openDialog({
+        directory: true,
+        multiple: false,
+        title: 'Open Markdown folder',
+      });
+      if (typeof selected !== 'string') return;
+
+      const normalizePath = (path: string) =>
+        path.replace(/[\\/]+$/, '').replace(/\//g, '\\').toLowerCase();
+      await libraryStore.load();
+      let book = libraryStore.books.find(
+        ({ book: existing }) => normalizePath(existing.root_path) === normalizePath(selected),
+      )?.book;
+      if (!book) book = await libraryStore.addBook(selected);
+
+      libraryStore.setActive(book.id);
+      await treeStore.loadBook(book.id, book.root_path);
+      sidebarOpen = true;
+      sidebarTab = 'files';
+      showToast(`Opened ${book.name}. Choose a Markdown file from Files.`, 'info');
+    } catch (err) {
+      showToast(`Failed to open folder: ${String(err)}`, 'error');
     }
   }
 
@@ -366,6 +423,10 @@
         findOpen = false;
         e.preventDefault();
         break;
+      case 'open-file':
+        openMarkdownFile();
+        e.preventDefault();
+        break;
       case 'new-tab':
         tabStore.open();
         e.preventDefault();
@@ -480,6 +541,17 @@
 
   function closeLightbox() { showLightbox = false; lightboxSrc = ''; }
 
+  function changeFontSize(delta: number) {
+    settingsStore.update({
+      fontSize: Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, settings.fontSize + delta)),
+    });
+  }
+
+  function changeTheme(theme: 'light' | 'dark' | 'sepia') {
+    settingsStore.update({ theme });
+    showThemeSettings = false;
+  }
+
   // ——— Init ———
   onMount(() => {
     libraryStore.load().catch(() => {});
@@ -508,7 +580,7 @@
 
 **A beautiful Markdown book reader for Windows 11.**
 
-Open a Markdown file with **Ctrl+O** or drag a folder onto the window.
+Use **Open folder** to browse a book, or press **Ctrl+O** to open a Markdown file.
 
 ## Features
 
@@ -564,6 +636,7 @@ fn main() {
     `--reader-size: ${settings.fontSize}px;` +
     `--reader-lh: ${settings.lineHeight};` +
     `--reader-width: ${settings.contentWidth}ch;` +
+    `--reader-text: ${settings.theme === 'dark' ? '#ffffff' : settings.theme === 'sepia' ? '#292524' : '#111827'};` +
     `--reader-zoom: ${settings.zoom};`
   );
 
@@ -575,7 +648,7 @@ fn main() {
 <svelte:window onkeydown={handleKeydown} onblur={handleWindowBlur} />
 
 <div
-  class="flex flex-col h-screen overflow-hidden {settings.theme === 'dark' ? 'dark' : settings.theme === 'sepia' ? 'sepia' : ''}"
+  class="flex flex-1 flex-col h-full min-w-0 overflow-hidden {settings.theme === 'dark' ? 'dark' : settings.theme === 'sepia' ? 'sepia' : ''}"
   style={cssVars}
 >
   <!-- Tab bar -->
@@ -591,7 +664,7 @@ fn main() {
 
   <!-- Nav toolbar (LNK-18/19) -->
   {#if !isZenMode}
-    <div class="flex items-center gap-1 px-2 py-1 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 shrink-0">
+    <div class="relative flex items-center gap-1 px-2 py-1 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 shrink-0">
       <button
         class="p-1 rounded text-sm disabled:opacity-30 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
         disabled={!canBack}
@@ -628,17 +701,81 @@ fn main() {
         </span>
       {/if}
       <div class="flex-1"></div>
+      <div class="flex items-center rounded border border-gray-300 dark:border-gray-600">
+        <button
+          class="px-2 py-1 text-sm leading-none hover:bg-gray-200 dark:hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
+          onclick={() => changeFontSize(-1)}
+          disabled={settings.fontSize <= MIN_FONT_SIZE}
+          title="Decrease reading text size"
+          aria-label="Decrease reading font size"
+        >−</button>
+        <button
+          class="px-2 py-1 text-sm leading-none hover:bg-gray-200 dark:hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
+          onclick={() => changeFontSize(1)}
+          disabled={settings.fontSize >= MAX_FONT_SIZE}
+          title="Increase reading text size"
+          aria-label="Increase reading font size"
+        >+</button>
+      </div>
       <button
-        class="p-1 rounded text-xs hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+        class="flex items-center gap-1.5 px-2 py-1 rounded text-xs hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+        onclick={openBookFolder}
+        title="Open a Markdown folder"
+        aria-label="Open folder"
+      >
+        <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" class="w-4 h-4">
+          <path d="M2.5 5.5a1.5 1.5 0 0 1 1.5-1.5h4l2 2h6a1.5 1.5 0 0 1 1.5 1.5v7a1.5 1.5 0 0 1-1.5 1.5H4a1.5 1.5 0 0 1-1.5-1.5v-9Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+          <path d="M2.5 8h15" stroke="currentColor" stroke-width="1.5" />
+        </svg>
+        <span>Open folder</span>
+      </button>
+      <button
+        class="flex items-center gap-1.5 px-2 py-1 rounded text-xs hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
         onclick={() => { showLinkChecker = true; }}
-        title="Check links (LNK-21)"
+        title={activeTab?.filePath ? 'Check links in this file' : 'Open a Markdown file to check its links'}
         aria-label="Check links in this file"
         disabled={!activeTab?.filePath}
-      >🔗 Check</button>
+      >
+        <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" class="w-4 h-4">
+          <path d="m8 12 4-4M6.5 13.5l-1 1a3 3 0 0 1-4.2-4.2l3-3a3 3 0 0 1 4.2 0M13.5 6.5l1-1a3 3 0 0 1 4.2 4.2l-3 3a3 3 0 0 1-4.2 0" transform="translate(1 1)" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+        </svg>
+        <span>Check links</span>
+      </button>
+      <button
+        class="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+        onclick={() => { showThemeSettings = !showThemeSettings; }}
+        title="Settings: change theme"
+        aria-label="Settings: change theme"
+        aria-haspopup="dialog"
+        aria-expanded={showThemeSettings}
+      >
+        <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" class="w-4 h-4">
+          <path d="M8.7 2.6h2.6l.4 1.8a5.8 5.8 0 0 1 1.2.7l1.8-.6 1.3 2.2-1.4 1.3a5.4 5.4 0 0 1 0 1.4l1.4 1.3-1.3 2.2-1.8-.6a5.8 5.8 0 0 1-1.2.7l-.4 1.8H8.7l-.4-1.8a5.8 5.8 0 0 1-1.2-.7l-1.8.6L4 10.7l1.4-1.3a5.4 5.4 0 0 1 0-1.4L4 6.7l1.3-2.2 1.8.6a5.8 5.8 0 0 1 1.2-.7l.4-1.8Z" transform="translate(1 0)" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" />
+          <circle cx="10" cy="8.7" r="2.2" stroke="currentColor" stroke-width="1.4" />
+        </svg>
+      </button>
+      {#if showThemeSettings}
+        <div
+          class="absolute right-2 top-full z-50 mt-1 w-48 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 shadow-lg"
+          role="dialog"
+          aria-label="Reader settings"
+        >
+          <p class="mb-2 text-xs font-semibold text-gray-700 dark:text-gray-200">Appearance</p>
+          <div class="grid grid-cols-3 gap-1" role="group" aria-label="Color theme">
+            {#each THEMES as theme}
+              <button
+                class="rounded px-2 py-1.5 text-xs capitalize transition-colors {settings.theme === theme ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700'}"
+                onclick={() => changeTheme(theme)}
+                aria-pressed={settings.theme === theme}
+              >{theme}</button>
+            {/each}
+          </div>
+        </div>
+      {/if}
     </div>
   {/if}
 
-  <div class="flex flex-1 overflow-hidden relative">
+  <div class="flex flex-1 min-w-0 overflow-hidden relative">
     <!-- Sidebar -->
     {#if sidebarOpen && !isZenMode}
       <div class="flex flex-col w-56 shrink-0 border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 overflow-hidden">
@@ -679,7 +816,7 @@ fn main() {
     <!-- Reader area -->
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions a11y_no_redundant_roles -->
     <main
-      class="flex-1 overflow-y-auto bg-white dark:bg-gray-900 sepia:bg-amber-50 transition-colors"
+      class="flex-1 min-w-0 overflow-y-auto bg-white dark:bg-gray-900 sepia:bg-amber-50 transition-colors"
       style="zoom: {settings.zoom}"
       bind:this={readerEl}
       onscroll={handleScroll}
@@ -694,7 +831,7 @@ fn main() {
         </div>
       {:else if rendered}
         <article
-          class="prose-reader mx-auto py-8 px-6 prose prose-gray dark:prose-invert max-w-none"
+          class="prose-reader mx-auto py-8 px-6 max-w-none"
         >
           {@html rendered}
         </article>

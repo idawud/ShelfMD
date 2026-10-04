@@ -13,6 +13,7 @@
   let entries = $state<ScanEntry[]>([]);
   let scanning = $state(false);
   let scanned = $state(false);
+  let scanError = $state<string | null>(null);
 
   $effect(() => {
     if (filePath) {
@@ -24,15 +25,15 @@
     if (!filePath) return;
     scanning = true;
     scanned = false;
+    scanError = null;
     try {
       entries = await invoke<ScanEntry[]>('scan_links', {
         filePath,
         bookRoot,
       });
       scanned = true;
-    } catch {
-      entries = [];
-      scanned = true;
+    } catch (err) {
+      scanError = `Failed to check links: ${String(err)}`;
     } finally {
       scanning = false;
     }
@@ -67,6 +68,14 @@
     <div class="flex-1 overflow-y-auto">
       {#if scanning}
         <p class="text-gray-400 text-sm px-4 py-4 animate-pulse">Scanning links…</p>
+      {:else if scanError}
+        <div class="flex items-center justify-between gap-4 px-4 py-4" role="alert">
+          <p class="text-red-600 dark:text-red-400 text-sm">{scanError}</p>
+          <button
+            class="shrink-0 px-3 py-1 rounded border border-gray-300 dark:border-gray-600 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+            onclick={scan}
+          >Retry</button>
+        </div>
       {:else if scanned && broken.length === 0}
         <p class="text-green-600 text-sm px-4 py-4">✓ All {ok.length} links are valid.</p>
       {:else if scanned}

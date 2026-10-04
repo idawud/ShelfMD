@@ -24,9 +24,9 @@
           class="block w-full text-left py-0.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded truncate text-gray-800 dark:text-gray-200"
           style="padding-left: {depth * 12 + 16}px"
           onclick={() => onOpenFile(node.path)}
-          title={node.title ?? node.name}
+          title={node.name}
         >
-          {node.title ?? node.name}
+          {node.name}
         </button>
       {/if}
     {/each}

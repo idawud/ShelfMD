@@ -11,18 +11,18 @@
 
   let query = $state('');
   let inputEl = $state<HTMLInputElement | null>(null);
-  let allFiles = $state<Array<[number, string, string | null]>>([]);
+  let allFiles = $state<string[]>([]);
 
   onMount(async () => {
     inputEl?.focus();
-    allFiles = await invoke<Array<[number, string, string | null]>>('list_book_files', { bookId });
+    allFiles = await invoke<string[]>('list_book_directory', { bookId });
   });
 
   let filtered = $derived(
     allFiles
-      .filter(([, path, title]) => {
+      .filter(path => {
         const q = query.toLowerCase();
-        return path.toLowerCase().includes(q) || (title ?? '').toLowerCase().includes(q);
+        return path.toLowerCase().includes(q);
       })
       .slice(0, 15)
   );
@@ -51,12 +51,12 @@
       class="w-full px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-transparent outline-none"
     />
     <ul class="max-h-64 overflow-y-auto">
-      {#each filtered as [, path, title] (path)}
+      {#each filtered as path (path)}
         <button
           class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex flex-col"
           onclick={() => { onSelect(bookRoot + '/' + path); onClose(); }}
         >
-          <span class="text-sm truncate">{title ?? path.split('/').pop()}</span>
+          <span class="text-sm truncate">{path.split('/').pop()}</span>
           <span class="text-xs text-gray-400 truncate">{path}</span>
         </button>
       {/each}
