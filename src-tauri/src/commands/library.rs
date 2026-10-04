@@ -72,17 +72,14 @@ fn derive_book_name(root: &Path) -> String {
 /// Index all markdown files in a book root
 fn index_book(book_id: i64, root: &PathBuf) -> anyhow::Result<()> {
     let mut files: Vec<(PathBuf, Option<String>)> = Vec::new();
-    collect_md_files(root, root, &mut files)?;
+    collect_md_files(root, &mut files)?;
     search::build_index(book_id, files)?;
     Ok(())
 }
 
-fn collect_md_files(
-    _root: &PathBuf,
-    dir: &PathBuf,
-    out: &mut Vec<(PathBuf, Option<String>)>,
-) -> anyhow::Result<()> {
-    for entry in std::fs::read_dir(dir)?.flatten() {
+fn collect_md_files(dir: &PathBuf, out: &mut Vec<(PathBuf, Option<String>)>) -> anyhow::Result<()> {
+    for entry in std::fs::read_dir(dir)? {
+        let entry = entry?;
         let path = entry.path();
         if path.is_dir() {
             // Skip hidden dirs
@@ -93,7 +90,7 @@ fn collect_md_files(
             {
                 continue;
             }
-            collect_md_files(_root, &path, out)?;
+            collect_md_files(&path, out)?;
         } else if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
             if matches!(
                 ext.to_lowercase().as_str(),
@@ -104,6 +101,74 @@ fn collect_md_files(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn collect_md_files_skips_hidden_directories_and_non_markdown_files() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "shelfmd-book-files-{}-{unique}",
+            std::process::id()
+        ));
+        let nested = root.join("chapters");
+        let hidden = root.join(".hidden");
+        std::fs::create_dir_all(&nested).unwrap();
+        std::fs::create_dir_all(&hidden).unwrap();
+        std::fs::write(root.join("README.md"), "# Book").unwrap();
+        std::fs::write(nested.join("chapter.markdown"), "# Chapter").unwrap();
+        std::fs::write(hidden.join("private.md"), "# Hidden").unwrap();
+        std::fs::write(root.join("notes.txt"), "Not Markdown").unwrap();
+
+        let mut files = Vec::new();
+        collect_md_files(&root, &mut files).unwrap();
+        let mut relative_paths = files
+            .into_iter()
+            .map(|(path, _)| {
+                path.strip_prefix(&root)
+                    .unwrap()
+                    .to_string_lossy()
+                    .replace('\\', "/")
+            })
+            .collect::<Vec<_>>();
+        relative_paths.sort();
+
+        std::fs::remove_dir_all(&root).unwrap();
+        assert_eq!(
+            relative_paths,
+            vec!["README.md", "chapters/chapter.markdown"]
+        );
+    }
+}
+
+#[tauri::command]
+pub fn list_book_directory(book_id: i64) -> Result<Vec<String>, String> {
+    let book = list_books()
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .find(|book| book.id == book_id)
+        .ok_or_else(|| format!("Book not found: {book_id}"))?;
+    let root = PathBuf::from(book.root_path);
+    let mut files = Vec::new();
+    collect_md_files(&root, &mut files).map_err(|e| e.to_string())?;
+
+    let mut relative_paths = files
+        .into_iter()
+        .map(|(path, _)| {
+            path.strip_prefix(&root)
+                .map(|relative| relative.to_string_lossy().replace('\\', "/"))
+                .map_err(|e| e.to_string())
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    relative_paths.sort();
+    Ok(relative_paths)
 }
 
 /// LIB-05: Update book metadata

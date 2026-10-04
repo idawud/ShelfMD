@@ -39,6 +39,18 @@
   color: var(--prose-text);
 }
 
+.prose-reader :where(h1, h2, h3, h4, h5, h6, p, li, td, th, blockquote, dt, dd, summary) {
+  color: #1a202c !important;
+}
+
+.dark .prose-reader :where(h1, h2, h3, h4, h5, h6, p, li, td, th, blockquote, dt, dd, summary) {
+  color: #f9fafb !important;
+}
+
+.sepia .prose-reader :where(h1, h2, h3, h4, h5, h6, p, li, td, th, blockquote, dt, dd, summary) {
+  color: #44403c !important;
+}
+
 .prose-reader h1, .prose-reader h2, .prose-reader h3,
 .prose-reader h4, .prose-reader h5, .prose-reader h6 {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -79,6 +91,11 @@
   padding-left: 1em;
   margin-left: 0;
   color: #6b7280;
+}
+
+.dark .prose-reader blockquote,
+.dark .prose-reader .code-lang {
+  color: #9ca3af;
 }
 
 .prose-reader table {

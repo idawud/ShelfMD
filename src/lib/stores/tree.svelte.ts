@@ -6,8 +6,6 @@ export interface TreeNode {
   isDir: boolean;
   children?: TreeNode[];
   expanded?: boolean;
-  fileId?: number;
-  title?: string;
 }
 
 function createTreeStore() {
@@ -15,12 +13,11 @@ function createTreeStore() {
   let readingOrder = $state<string[]>([]);
   let expanded = $state<Set<string>>(new Set());
 
-  function buildTree(files: Array<[number, string, string | null]>, root: string): TreeNode[] {
-    // files: [file_id, rel_path, title]
+  function buildTree(files: string[], root: string): TreeNode[] {
     const dirs = new Map<string, TreeNode>();
     const rootNode: TreeNode = { name: '', path: root, isDir: true, children: [] };
 
-    for (const [fileId, relPath, title] of files) {
+    for (const relPath of files) {
       const parts = relPath.replace(/\\/g, '/').split('/');
       let current = rootNode;
 
@@ -43,10 +40,8 @@ function createTreeStore() {
       const fileName = parts[parts.length - 1];
       (current.children ??= []).push({
         name: fileName,
-        path: relPath,
+        path: root.replace(/[\\/]+$/, '') + '/' + relPath,
         isDir: false,
-        fileId,
-        title: title ?? undefined,
       });
     }
 
@@ -59,7 +54,7 @@ function createTreeStore() {
 
     async loadBook(bookId: number, bookRoot: string) {
       const [files, order] = await Promise.all([
-        invoke<Array<[number, string, string | null]>>('list_book_files', { bookId }),
+        invoke<string[]>('list_book_directory', { bookId }),
         invoke<string[]>('get_reading_order', { bookRoot }),
       ]);
       readingOrder = order;

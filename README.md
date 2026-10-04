@@ -22,7 +22,7 @@ Single-file Markdown viewers fail at reading books in three ways:
 
 - **Cross-file links** — Relative, root-relative, extensionless, wiki `[[links]]`, anchors
 - **Reading memory** — Top-of-viewport line, heading, percent read; survives restarts
-- **Library** — Manage multiple book folders; switch with Ctrl+Shift+O
+- **Library** — Open a Markdown folder, manage multiple books, and switch with Ctrl+Shift+O
 - **Beautiful typography** — Light, Dark, Sepia themes; font and width controls
 - **Syntax highlighting** — 25+ languages via highlight.js
 - **Math** — KaTeX inline and block

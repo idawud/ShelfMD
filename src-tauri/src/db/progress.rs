@@ -123,12 +123,15 @@ pub fn get_book_progress(book_id: i64) -> Result<(i64, i64)> {
 mod tests {
     use super::*;
     use crate::db;
+    use std::sync::Once;
 
     fn setup_test_db() {
-        let dir = std::env::temp_dir().join(format!("shelfmd_test_{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
-        let db_path = dir.join("test.db");
-        db::init(&db_path).ok(); // ok if already initialized
+        static INIT: Once = Once::new();
+        INIT.call_once(|| {
+            let dir = std::env::temp_dir().join(format!("shelfmd_test_{}", std::process::id()));
+            std::fs::create_dir_all(&dir).unwrap();
+            db::init(&dir.join("test.db")).unwrap();
+        });
     }
 
     #[test]

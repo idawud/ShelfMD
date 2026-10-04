@@ -9,6 +9,21 @@ pub fn run() {
     env_logger::init();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                if let Err(error) = window.unminimize() {
+                    log::warn!("Failed to restore the existing window: {error}");
+                }
+                if let Err(error) = window.show() {
+                    log::warn!("Failed to show the existing window: {error}");
+                }
+                if let Err(error) = window.set_focus() {
+                    log::warn!("Failed to focus the existing window: {error}");
+                }
+            } else {
+                log::warn!("Could not find the existing main window");
+            }
+        }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
@@ -40,12 +55,21 @@ pub fn run() {
             commands::library::relocate_book,
             commands::library::remove_book_cmd,
             commands::library::list_book_files,
+            commands::library::list_book_directory,
             commands::library::search_book,
             commands::library::touch_book,
             commands::library::get_reading_order,
             commands::jumplist::update_jump_list,
         ])
         .setup(|app| {
+            let window_icon = app
+                .default_window_icon()
+                .cloned()
+                .ok_or("default application icon is not configured")?;
+            app.get_webview_window("main")
+                .ok_or("main window was not created")?
+                .set_icon(window_icon)?;
+
             let app_data_dir = app
                 .path()
                 .app_data_dir()
