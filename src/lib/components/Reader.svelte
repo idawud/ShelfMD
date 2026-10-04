@@ -19,7 +19,7 @@
   import { progressStore } from '$lib/stores/progress.svelte.js';
   import { chaptersStore } from '$lib/stores/chapters.svelte.js';
   import { bookmarksStore } from '$lib/stores/bookmarks.svelte.js';
-  import type { Heading } from '$lib/types.js';
+  import { DEFAULT_TEXT_COLORS, type Heading, type Theme } from '$lib/types.js';
   import type { OpenFileResult, OpenWithMemoryResult } from '$lib/types.js';
   import TabBar from './TabBar.svelte';
   import Outline from './Outline.svelte';
@@ -547,10 +547,18 @@
     });
   }
 
-  function changeTheme(theme: 'light' | 'dark' | 'sepia') {
+  function changeTheme(theme: Theme) {
     settingsStore.update({ theme });
-    showThemeSettings = false;
   }
+
+  // Apply the theme to <html> as well, so the layout shell, scrollbars and form
+  // controls follow the chosen theme instead of the OS color scheme.
+  $effect(() => {
+    const root = document.documentElement;
+    root.classList.remove(...THEMES);
+    root.classList.add(settings.theme);
+    root.style.colorScheme = settings.theme === 'dark' ? 'dark' : 'light';
+  });
 
   // ——— Init ———
   onMount(() => {
@@ -630,13 +638,16 @@ fn main() {
     }
   });
 
+  let textColor = $derived(settings.textColors[settings.theme] ?? DEFAULT_TEXT_COLORS[settings.theme]);
+  let hasCustomTextColor = $derived(settings.textColors[settings.theme] !== undefined);
+
   // CSS variables from settings
   let cssVars = $derived(
     `--reader-font: ${settings.fontFamily};` +
     `--reader-size: ${settings.fontSize}px;` +
     `--reader-lh: ${settings.lineHeight};` +
     `--reader-width: ${settings.contentWidth}ch;` +
-    `--reader-text: ${settings.theme === 'dark' ? '#ffffff' : settings.theme === 'sepia' ? '#292524' : '#111827'};` +
+    `--reader-text: ${textColor};` +
     `--reader-zoom: ${settings.zoom};`
   );
 
@@ -756,7 +767,7 @@ fn main() {
       </button>
       {#if showThemeSettings}
         <div
-          class="absolute right-2 top-full z-50 mt-1 w-48 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 shadow-lg"
+          class="absolute right-2 top-full z-50 mt-1 w-56 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 shadow-lg"
           role="dialog"
           aria-label="Reader settings"
         >
@@ -769,6 +780,25 @@ fn main() {
                 aria-pressed={settings.theme === theme}
               >{theme}</button>
             {/each}
+          </div>
+          <div class="mt-3 flex items-center gap-2">
+            <label for="reader-text-color" class="flex-1 text-xs text-gray-700 dark:text-gray-200">
+              Text color <span class="capitalize text-gray-500 dark:text-gray-400">({settings.theme})</span>
+            </label>
+            <input
+              id="reader-text-color"
+              type="color"
+              class="h-6 w-8 cursor-pointer rounded border border-gray-300 dark:border-gray-600 bg-transparent p-0"
+              value={textColor}
+              oninput={(e) => settingsStore.setTextColor(settings.theme, e.currentTarget.value)}
+              title="Reading text color for the {settings.theme} theme"
+            />
+            <button
+              class="rounded px-1.5 py-1 text-xs text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
+              onclick={() => settingsStore.resetTextColor(settings.theme)}
+              disabled={!hasCustomTextColor}
+              title="Restore the default text color for this theme"
+            >Reset</button>
           </div>
         </div>
       {/if}

@@ -16,8 +16,19 @@ export interface Tab {
   draftContent?: string;
 }
 
+export type Theme = 'light' | 'dark' | 'sepia';
+
+/** Built-in reading text color for each theme, used when no custom color is saved. */
+export const DEFAULT_TEXT_COLORS: Record<Theme, string> = {
+  light: '#111827',
+  dark: '#ffffff',
+  sepia: '#292524',
+};
+
 export interface ReaderSettings {
-  theme: 'light' | 'dark' | 'sepia';
+  theme: Theme;
+  /** Custom reading text color per theme; a missing entry falls back to DEFAULT_TEXT_COLORS. */
+  textColors: Partial<Record<Theme, string>>;
   fontFamily: string;
   fontSize: number; // px
   lineHeight: number;
@@ -30,6 +41,7 @@ export interface ReaderSettings {
 
 export const DEFAULT_SETTINGS: ReaderSettings = {
   theme: 'light',
+  textColors: {},
   fontFamily: 'Georgia, serif',
   fontSize: 16,
   lineHeight: 1.75,
