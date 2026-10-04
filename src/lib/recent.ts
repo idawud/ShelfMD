@@ -45,7 +45,8 @@ export function addRecent(filePath: string, title: string, now = Date.now()): Re
 /** Recent files, newest first, flagged when they are part of the saved workspace. */
 export function recentWithSaved(): RecentFile[] {
   const key = (p: string) => p.replace(/\\/g, '/').toLowerCase();
-  const savedPaths = new Set((loadWorkspace()?.tabs ?? []).map(t => key(t.filePath)));
+  const savedPaths = new Set((loadWorkspace()?.tabs ?? []).flatMap(t => (t.filePath ? [key(t.filePath)] : [])),
+  );
   return loadRecents()
     .sort((a, b) => b.openedAt - a.openedAt)
     .map(r => ({ ...r, saved: savedPaths.has(key(r.filePath)) }));

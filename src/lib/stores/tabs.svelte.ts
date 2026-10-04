@@ -44,7 +44,7 @@ function createTabStore() {
 
     close(id: string) {
       const idx = tabs.findIndex(t => t.id === id);
-      if (idx === -1) return;
+      if (idx === -1 || tabs[idx].pinned) return;
       tabs.splice(idx, 1);
       if (tabs.length === 0) {
         tabs.push(newTab());
@@ -120,7 +120,7 @@ function createTabStore() {
     },
 
     init() {
-      if (tabs.length === 0) tabs.push(newTab());
+      if (tabs.length === 0) tabs.push(newTab({ title: 'Welcome', pinned: true }));
     }
   };
 }

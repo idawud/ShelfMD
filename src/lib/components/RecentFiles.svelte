@@ -1,11 +1,15 @@
 <script lang="ts">
   import type { RecentFile } from '$lib/recent.js';
 
-  let { files, onOpen }: { files: RecentFile[]; onOpen: (path: string) => void } = $props();
+  let {
+    files,
+    onOpen,
+    heading = 'Saved & recent files',
+  }: { files: RecentFile[]; onOpen: (path: string) => void; heading?: string } = $props();
 </script>
 
-<section class="mx-auto max-w-2xl px-6 pt-8" aria-label="Recent files">
-  <h2 class="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-200">Saved &amp; recent files</h2>
+<section class="mx-auto max-w-2xl px-6 pt-8" aria-label={heading}>
+  <h2 class="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-200">{heading}</h2>
   <ul class="divide-y divide-gray-200 dark:divide-gray-700 rounded border border-gray-200 dark:border-gray-700">
     {#each files as file (file.filePath)}
       <li>

@@ -23,14 +23,16 @@
         <span class="w-2 h-2 rounded-full bg-amber-500 shrink-0" title="Unsaved changes"></span>
       {/if}
       <span class="max-w-32 truncate">{tab.title}</span>
-      <span
-        class="ml-1 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-xs leading-none"
-        role="button"
-        tabindex="0"
-        aria-label="Close tab"
-        onclick={(e) => { e.stopPropagation(); onClose(tab.id); }}
-        onkeydown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); onClose(tab.id); } }}
-      >×</span>
+      {#if !tab.pinned}
+        <span
+          class="ml-1 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-xs leading-none"
+          role="button"
+          tabindex="0"
+          aria-label="Close tab"
+          onclick={(e) => { e.stopPropagation(); onClose(tab.id); }}
+          onkeydown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); onClose(tab.id); } }}
+        >×</span>
+      {/if}
     </button>
   {/each}
 
