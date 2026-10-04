@@ -14,6 +14,8 @@ export interface Tab {
   viewMode: 'rendered' | 'raw' | 'edit';
   scrollLine: number;
   draftContent?: string;
+  /** Pinned tabs (the Welcome tab) cannot be closed and never host a navigated file. */
+  pinned?: boolean;
 }
 
 export type Theme = 'light' | 'dark' | 'sepia';

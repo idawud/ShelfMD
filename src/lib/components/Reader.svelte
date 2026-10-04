@@ -78,6 +78,8 @@
   // ——— Navigation function (LNK-01, LNK-06, LNK-10/11, LNK-18) ———
   async function navigateToFile(filePath: string, anchor?: string, newTab?: boolean) {
     try {
+      // The Welcome tab is static: files always open beside it, never in it.
+      if (activeTab?.pinned) newTab = true;
       // LNK-11: if target is already open, just focus that tab
       const existing = tabStore.findByPath(filePath);
       if (existing && !newTab) {
@@ -212,9 +214,6 @@
       await treeStore.loadBook(book.id, book.root_path);
       sidebarOpen = true;
       sidebarTab = 'files';
-      // The file-less start tab represents the opened folder, so name it after the folder.
-      const startTab = tabStore.tabs.find(t => !t.filePath);
-      if (startTab) tabStore.update(startTab.id, { title: book.name });
       showToast(`Opened ${book.name}. Choose a Markdown file from Files.`, 'info');
     } catch (err) {
       showToast(`Failed to open folder: ${String(err)}`, 'error');
@@ -606,11 +605,8 @@
       if (book) {
         libraryStore.setActive(book.id);
         treeStore.loadBook(book.id, book.root_path).catch(() => {});
-        const startTab = tabStore.tabs.find(t => !t.filePath);
-        if (startTab) tabStore.update(startTab.id, { title: book.name });
       }
 
-      const blank = tabStore.tabs[0];
       const restored: Array<{ id: string; fileId: number }> = [];
       let activeId: string | null = null;
       for (let i = 0; i < saved.tabs.length; i++) {
@@ -634,7 +630,6 @@
       }
       if (restored.length === 0) return;
 
-      if (blank && !blank.filePath) tabStore.close(blank.id);
       const target = activeId ?? restored[restored.length - 1].id;
       tabStore.activate(target);
       currentFileId = restored.find(r => r.id === target)?.fileId ?? null;
@@ -735,13 +730,6 @@ fn main() {
 
   async function openExternalFiles(paths: string[]) {
     for (const path of paths) await navigateToFile(path, undefined, true);
-    // Drop the placeholder Welcome tab once a real file is open.
-    const blank = tabStore.tabs.find(t => !t.filePath);
-    if (paths.length > 0 && blank && tabStore.tabs.length > 1) {
-      const activeId = tabStore.active?.id;
-      tabStore.close(blank.id);
-      if (activeId) tabStore.activate(activeId);
-    }
   }
 
   let textColor = $derived(settings.textColors[settings.theme] ?? DEFAULT_TEXT_COLORS[settings.theme]);
