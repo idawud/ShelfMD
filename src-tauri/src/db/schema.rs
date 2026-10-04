@@ -9,7 +9,8 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
     ",
     )?;
 
-    let version: i32 = conn.query_row("SELECT MAX(version) FROM schema_version", [], |r| r.get(0))?;
+    let version: i32 =
+        conn.query_row("SELECT MAX(version) FROM schema_version", [], |r| r.get(0))?;
     conn.execute("DELETE FROM schema_version WHERE version != ?1", [version])?;
 
     if version < 1 {
