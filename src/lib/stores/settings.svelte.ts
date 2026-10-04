@@ -1,13 +1,18 @@
-import { DEFAULT_SETTINGS, type ReaderSettings } from '$lib/types.js';
+import { DEFAULT_SETTINGS, type ReaderSettings, type Theme } from '$lib/types.js';
 
 function createSettingsStore() {
-  let settings = $state<ReaderSettings>({ ...DEFAULT_SETTINGS });
+  let settings = $state<ReaderSettings>({ ...DEFAULT_SETTINGS, textColors: {} });
 
   // Load from localStorage on init
   if (typeof window !== 'undefined') {
     try {
       const saved = localStorage.getItem('shelfmd:settings');
-      if (saved) Object.assign(settings, JSON.parse(saved));
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        Object.assign(settings, parsed);
+        // Settings saved before per-theme text colors existed have no textColors
+        if (!parsed.textColors || typeof parsed.textColors !== 'object') settings.textColors = {};
+      }
     } catch {}
   }
 
@@ -23,8 +28,17 @@ function createSettingsStore() {
       Object.assign(settings, patch);
       save();
     },
+    setTextColor(theme: Theme, color: string) {
+      settings.textColors = { ...settings.textColors, [theme]: color };
+      save();
+    },
+    resetTextColor(theme: Theme) {
+      const { [theme]: _, ...rest } = settings.textColors;
+      settings.textColors = rest;
+      save();
+    },
     reset() {
-      Object.assign(settings, DEFAULT_SETTINGS);
+      Object.assign(settings, DEFAULT_SETTINGS, { textColors: {} });
       save();
     }
   };

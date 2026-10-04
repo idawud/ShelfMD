@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Drive `dark:` / `sepia:` utilities from the app's theme class, not the OS
+   prefers-color-scheme (Tailwind v4's default), so Light stays light on a dark OS. */
+@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant sepia (&:where(.sepia, .sepia *));
+
 /* ——— Theme variables ——— */
 :root {
   --prose-bg: #ffffff;
