@@ -20,6 +20,25 @@ describe('workspace', () => {
     expect(ws.activeIdx).toBe(1);
   });
 
+  it('keeps folder tabs and drops only the Welcome tab', () => {
+    const ws = buildWorkspace(
+      [
+        { filePath: null, scrollLine: 0 },
+        { filePath: null, bookId: 7, scrollLine: 0 },
+        { filePath: 'a.md', scrollLine: 5 },
+      ],
+      1,
+      rest,
+    );
+    expect(ws.tabs).toEqual([
+      { filePath: null, bookId: 7, scrollLine: 0 },
+      { filePath: 'a.md', scrollLine: 5 },
+    ]);
+    expect(ws.activeIdx).toBe(0);
+    saveWorkspace(ws);
+    expect(loadWorkspace()?.tabs).toEqual(ws.tabs);
+  });
+
   it('round-trips through localStorage', () => {
     const ws = buildWorkspace([{ filePath: 'a.md', scrollLine: 42 }], 0, rest);
     saveWorkspace(ws);

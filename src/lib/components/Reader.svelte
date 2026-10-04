@@ -78,8 +78,8 @@
   // ——— Navigation function (LNK-01, LNK-06, LNK-10/11, LNK-18) ———
   async function navigateToFile(filePath: string, anchor?: string, newTab?: boolean) {
     try {
-      // The Welcome tab is static: files always open beside it, never in it.
-      if (activeTab?.pinned) newTab = true;
+      // Welcome and folder tabs are not documents: files always open beside them, never in them.
+      if (activeTab?.pinned || activeTab?.bookId !== undefined) newTab = true;
       // LNK-11: if target is already open, just focus that tab
       const existing = tabStore.findByPath(filePath);
       if (existing && !newTab) {
@@ -193,6 +193,26 @@
     }
   }
 
+  function folderTab(bookId: number, name: string, root: string) {
+    return { bookId, title: name, content: `# ${name}\n\n\`${root}\`\n` };
+  }
+
+  // Markdown files of the folder shown on the active folder tab.
+  let folderFiles = $state<RecentFile[]>([]);
+  $effect(() => {
+    const bookId = activeTab?.bookId;
+    const root = libraryStore.books.find(b => b.book.id === bookId)?.book.root_path;
+    if (bookId === undefined || !root) { folderFiles = []; return; }
+    invoke<string[]>('list_book_directory', { bookId })
+      .then(files => {
+        const base = root.replace(/[\\/]+$/, '');
+        folderFiles = files
+          .filter(f => /\.(md|markdown|mdown|mkd)$/i.test(f))
+          .map(f => ({ filePath: `${base}/${f}`, title: f, openedAt: 0 }));
+      })
+      .catch(() => { folderFiles = []; });
+  });
+
   async function openBookFolder() {
     try {
       const selected = await openDialog({
@@ -214,6 +234,10 @@
       await treeStore.loadBook(book.id, book.root_path);
       sidebarOpen = true;
       sidebarTab = 'files';
+      // Each opened folder gets its own tab, named after the folder.
+      const existing = tabStore.tabs.find(t => t.bookId === book.id);
+      if (existing) tabStore.activate(existing.id);
+      else tabStore.open(folderTab(book.id, book.name, book.root_path));
       showToast(`Opened ${book.name}. Choose a Markdown file from Files.`, 'info');
     } catch (err) {
       showToast(`Failed to open folder: ${String(err)}`, 'error');
@@ -574,7 +598,7 @@
 
   function snapshotWorkspace() {
     return buildWorkspace(
-      tabStore.tabs.map(t => ({ filePath: t.filePath, scrollLine: t.scrollLine })),
+      tabStore.tabs.map(t => ({ filePath: t.filePath, bookId: t.bookId, scrollLine: t.scrollLine })),
       tabStore.activeIdx,
       {
         activeBookId: libraryStore.activeBookId,
@@ -607,10 +631,18 @@
         treeStore.loadBook(book.id, book.root_path).catch(() => {});
       }
 
-      const restored: Array<{ id: string; fileId: number }> = [];
+      const restored: Array<{ id: string; fileId: number | null }> = [];
       let activeId: string | null = null;
       for (let i = 0; i < saved.tabs.length; i++) {
         const st = saved.tabs[i];
+        if (!st.filePath) {
+          const folder = libraryStore.books.find(b => b.book.id === st.bookId)?.book;
+          if (!folder) continue; // folder was removed from the library
+          const tab = tabStore.open(folderTab(folder.id, folder.name, folder.root_path));
+          restored.push({ id: tab.id, fileId: null });
+          if (i === saved.activeIdx) activeId = tab.id;
+          continue;
+        }
         try {
           const result = await invoke<OpenWithMemoryResult>('open_file_with_memory', {
             path: st.filePath,
@@ -958,7 +990,11 @@ fn main() {
           <span class="animate-pulse">Rendering...</span>
         </div>
       {:else if rendered}
-        {#if activeTab && !activeTab.filePath && recentFiles.length > 0}
+        {#if activeTab?.bookId !== undefined}
+          {#if folderFiles.length > 0}
+            <RecentFiles heading="Files in this folder" files={folderFiles} onOpen={(path) => navigateToFile(path, undefined, true)} />
+          {/if}
+        {:else if activeTab && !activeTab.filePath && recentFiles.length > 0}
           <RecentFiles files={recentFiles} onOpen={(path) => navigateToFile(path, undefined, true)} />
         {/if}
         <article
