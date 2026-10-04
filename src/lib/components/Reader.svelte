@@ -19,6 +19,9 @@
   import { progressStore } from '$lib/stores/progress.svelte.js';
   import { chaptersStore } from '$lib/stores/chapters.svelte.js';
   import { bookmarksStore } from '$lib/stores/bookmarks.svelte.js';
+  import { buildWorkspace, loadWorkspace, saveWorkspace } from '$lib/workspace.js';
+  import { addRecent, recentWithSaved, type RecentFile } from '$lib/recent.js';
+  import RecentFiles from './RecentFiles.svelte';
   import { DEFAULT_TEXT_COLORS, type Heading, type Theme } from '$lib/types.js';
   import type { OpenFileResult, OpenWithMemoryResult } from '$lib/types.js';
   import TabBar from './TabBar.svelte';
@@ -56,6 +59,7 @@
   let showQuickOpen = $state(false);
   let showSearchPanel = $state(false);
   let showThemeSettings = $state(false);
+  let recentFiles = $state<RecentFile[]>([]);
 
   // Derived from active tab
   let activeTab = $derived(tabStore.active);
@@ -139,6 +143,8 @@
 
       // Store file ID for progress tracking
       currentFileId = result.file_id;
+      addRecent(result.canonical_path, result.file_name);
+      recentFiles = recentWithSaved();
 
       // MEM-05: Restore position if progress exists
       if (result.progress && !anchor) {
@@ -316,7 +322,8 @@
   function handleScroll() {
     if (scrollDebounce) clearTimeout(scrollDebounce);
     scrollDebounce = setTimeout(() => {
-      if (!readerEl) return;
+      // While rendering, the container is blank/reflowing; recording now would clobber the saved position.
+      if (!readerEl || isLoading) return;
       const pos = getScrollPosition(readerEl);
       activeHeadingSlug = pos.headingSlug;
       if (activeTab) {
@@ -560,9 +567,85 @@
     root.style.colorScheme = settings.theme === 'dark' ? 'dark' : 'light';
   });
 
+  // ——— Workspace persistence: reopen exactly where the user left off ———
+  let workspaceRestored = $state(false);
+
+  function snapshotWorkspace() {
+    return buildWorkspace(
+      tabStore.tabs.map(t => ({ filePath: t.filePath, scrollLine: t.scrollLine })),
+      tabStore.activeIdx,
+      {
+        activeBookId: libraryStore.activeBookId,
+        sidebarOpen,
+        sidebarTab,
+      },
+    );
+  }
+
+  $effect(() => {
+    if (!workspaceRestored) return;
+    const snapshot = snapshotWorkspace(); // reads reactive state so edits re-trigger this
+    const timer = setTimeout(() => saveWorkspace(snapshot), 500);
+    return () => clearTimeout(timer);
+  });
+
+  async function restoreWorkspace() {
+    const saved = loadWorkspace();
+    try {
+      if (!saved) return;
+      sidebarOpen = saved.sidebarOpen;
+      sidebarTab = saved.sidebarTab;
+
+      await libraryStore.load().catch(() => {});
+      const book = saved.activeBookId !== null
+        ? libraryStore.books.find(b => b.book.id === saved.activeBookId)?.book
+        : undefined;
+      if (book) {
+        libraryStore.setActive(book.id);
+        treeStore.loadBook(book.id, book.root_path).catch(() => {});
+      }
+
+      const blank = tabStore.tabs[0];
+      const restored: Array<{ id: string; fileId: number }> = [];
+      let activeId: string | null = null;
+      for (let i = 0; i < saved.tabs.length; i++) {
+        const st = saved.tabs[i];
+        try {
+          const result = await invoke<OpenWithMemoryResult>('open_file_with_memory', {
+            path: st.filePath,
+            bookId: bookIdForPath(st.filePath),
+          });
+          const tab = tabStore.open({
+            filePath: result.canonical_path,
+            title: result.file_name,
+            content: result.content,
+            scrollLine: st.scrollLine,
+          });
+          restored.push({ id: tab.id, fileId: result.file_id });
+          if (i === saved.activeIdx) activeId = tab.id;
+        } catch {
+          // File moved or deleted since last session; skip its tab.
+        }
+      }
+      if (restored.length === 0) return;
+
+      if (blank && !blank.filePath) tabStore.close(blank.id);
+      const target = activeId ?? restored[restored.length - 1].id;
+      tabStore.activate(target);
+      currentFileId = restored.find(r => r.id === target)?.fileId ?? null;
+    } finally {
+      workspaceRestored = true;
+    }
+  }
+
+  function flushWorkspace() {
+    if (workspaceRestored) saveWorkspace(snapshotWorkspace());
+  }
+
   // ——— Init ———
   onMount(() => {
     libraryStore.load().catch(() => {});
+    recentFiles = recentWithSaved();
 
     // Listen for file-changed events from the watcher
     listen<{ book_id: number; path: string; kind: string }>('file-changed', (event) => {
@@ -636,6 +719,8 @@ fn main() {
         title: 'Welcome',
       });
     }
+
+    restoreWorkspace();
   });
 
   let textColor = $derived(settings.textColors[settings.theme] ?? DEFAULT_TEXT_COLORS[settings.theme]);
@@ -656,7 +741,11 @@ fn main() {
   let canForward = $derived(activeTab ? tabStore.canForward(activeTab.id) : false);
 </script>
 
-<svelte:window onkeydown={handleKeydown} onblur={handleWindowBlur} />
+<svelte:window
+  onkeydown={handleKeydown}
+  onblur={() => { handleWindowBlur(); flushWorkspace(); }}
+  onbeforeunload={flushWorkspace}
+/>
 
 <div
   class="flex flex-1 flex-col h-full min-w-0 overflow-hidden {settings.theme === 'dark' ? 'dark' : settings.theme === 'sepia' ? 'sepia' : ''}"
@@ -860,6 +949,9 @@ fn main() {
           <span class="animate-pulse">Rendering...</span>
         </div>
       {:else if rendered}
+        {#if activeTab && !activeTab.filePath && recentFiles.length > 0}
+          <RecentFiles files={recentFiles} onOpen={(path) => navigateToFile(path, undefined, true)} />
+        {/if}
         <article
           class="prose-reader mx-auto py-8 px-6 max-w-none"
         >
