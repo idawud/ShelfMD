@@ -968,7 +968,7 @@ fn main() {
             onNavigate={(path, line) => { navigateToFile(path).then(() => { if (readerEl) scrollToLine(readerEl, line); }); }}
           />
         {:else}
-          <LibrarySidebar onOpenFile={(path) => navigateToFile(path)} />
+          <LibrarySidebar activePath={activeTab?.filePath} onOpenFile={(path) => navigateToFile(path)} />
         {/if}
       </div>
     {/if}
