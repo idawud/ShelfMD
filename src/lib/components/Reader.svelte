@@ -252,8 +252,10 @@
       rendered = html;
       headings = extractHeadings(content);
       isLoading = false;
-      // Restore scroll after render
+      // The scroll container is shared by every tab, so a new document would inherit the previous offset.
       await tick();
+      if (readerEl) readerEl.scrollTop = 0;
+      // Restore scroll after render
       if (readerEl && activeTab?.scrollLine) {
         scrollToLine(readerEl, activeTab.scrollLine);
       }
